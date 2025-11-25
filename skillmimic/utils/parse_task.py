@@ -26,7 +26,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from env.tasks.vec_task_wrappers import VecTaskPythonWrapper
+from env.tasks.vec_task_wrappers import VecTaskPythonWrapper, VecTaskDAggerWrapper
+from env.tasks.distill.skillmimic2_distill import Distill
 from env.tasks.open_loop import OpenLoop
 from env.tasks.skillmimic import SkillMimicBallPlay
 from env.tasks.skillmimic_multi import MultiSkillMimicBallPlay
@@ -35,9 +36,6 @@ from env.tasks.skillmimic_insert import SkillMimicBallPlayInsert
 from env.tasks.skillmimic2_rand_independ_insert import SkillMimic2BallPlayRandIndInsert 
 from env.tasks.skillmimic2_reweight import SkillMimic2BallPlayReweight
 from env.tasks.skillmimic2_rand_independ import SkillMimic2BallPlayRandInd
-from isaacgym import rlgpu
-
-import json
 import numpy as np
 
 
@@ -67,5 +65,30 @@ def parse_task(args, cfg, cfg_train, sim_params):
         print(e)
         warn_task_name()
     env = VecTaskPythonWrapper(task, rl_device, cfg_train.get("clip_observations", np.inf), cfg_train.get("clip_actions", 1.0))
+
+    return task, env
+
+def parse_task_distill(args, cfg, cfg_train, sim_params):
+
+    # create native task and pass custom config
+    device_id = cfg['rank']
+    rl_device = cfg['rl_device']
+    print(device_id,rl_device )
+    cfg["seed"] = cfg_train.get("seed", -1)
+    cfg_task = cfg["env"]
+    cfg_task["seed"] = cfg["seed"]
+
+    try:
+        task = eval(args.task)( # to HumanoidLocation(), obs defined here!
+            cfg=cfg,
+            sim_params=sim_params,
+            physics_engine=args.physics_engine,
+            device_type=args.device,
+            device_id=device_id,
+            headless=args.headless)
+    except NameError as e:
+        print(e)
+        warn_task_name()
+    env = VecTaskDAggerWrapper(task, rl_device, cfg_train.get("clip_observations", np.inf), cfg_train.get("clip_actions", 1.0))
 
     return task, env

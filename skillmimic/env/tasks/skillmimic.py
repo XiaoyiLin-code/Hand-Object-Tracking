@@ -55,6 +55,7 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
         self._enable_dof_obs = cfg['env']['enableDofObs']
         self._enable_dense_obj = cfg["env"]["enable_dense_obj"]
 
+        self._enable_wrist_local_obs = cfg["env"]["enable_wrist_local_obs"]
 
         self.condition_size = 52
 
@@ -245,14 +246,17 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
     def _compute_observations(self, env_ids=None): # called @ reset & post step
         obs = None
 
-        humanoid_obs = self._compute_humanoid_local_obs(env_ids)
-        obj_obs = self._compute_obj_local_obs(env_ids)
-
-        # if self.skill_labels[env_ids].shape != torch.Size([1]):
-        #     obj_obs_cond = (self.skill_labels[env_ids]!=9).squeeze(0).unsqueeze(1)
-        # else:
-        #     obj_obs_cond = self.skill_labels[env_ids]!=9
-        # obj_obs = torch.where(obj_obs_cond, obj_obs, torch.zeros_like(obj_obs))
+        if self._enable_wrist_local_obs:
+            humanoid_obs = self._compute_humanoid_local_obs(env_ids)
+            obj_obs = self._compute_obj_local_obs(env_ids)
+        else:
+            humanoid_obs = self._compute_humanoid_obs(env_ids)
+            obj_obs = self._compute_obj_obs(env_ids)
+        if self.skill_labels[env_ids].shape != torch.Size([1]):
+            obj_obs_cond = (self.skill_labels[env_ids]!=9).squeeze(0).unsqueeze(1)
+        else:
+            obj_obs_cond = self.skill_labels[env_ids]!=9
+        obj_obs = torch.where(obj_obs_cond, obj_obs, torch.zeros_like(obj_obs))
 
         obs = humanoid_obs
         obs = torch.cat([obs, obj_obs], dim=-1)

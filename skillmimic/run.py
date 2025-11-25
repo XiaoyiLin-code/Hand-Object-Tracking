@@ -30,7 +30,7 @@ import os
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 from utils.config import set_np_formatting, set_seed, get_args, parse_sim_params, load_cfg
-from utils.parse_task import parse_task
+from utils.parse_task import parse_task,parse_task_distill
 
 from rl_games.algos_torch import players
 from rl_games.algos_torch import torch_ext
@@ -46,31 +46,34 @@ from learning import skillmimic_agent
 from learning import skillmimic_players
 from learning import skillmimic_models, skillmimic_models_denseobj
 from learning import skillmimic_network_builder, skillmimic_network_builder_denseobj
+from learning.distill import skillmimic_agent_distll 
 # from learning import physhoi_network_builder_dual #ZC9 #V1
 
 args = None
 cfg = None
 cfg_train = None
 
+
+def multi_gpu_get_rank(multi_gpu):
+    if multi_gpu:
+        rank = int(os.getenv("LOCAL_RANK", "0"))
+        print("GPU rank: ", rank)
+        return rank
+
+    return 0
+
 def create_rlgpu_env(**kwargs):
-    use_horovod = cfg_train['params']['config'].get('multi_gpu', False)
-    if use_horovod:
-        import horovod.torch as hvd
-
-        rank = hvd.rank()
-        print("Horovod rank: ", rank)
-
-        cfg_train['params']['seed'] = cfg_train['params']['seed'] + rank
-
-        args.device = 'cuda'
-        args.device_id = rank
-        args.rl_device = 'cuda:' + str(rank)
-
-        cfg['rank'] = rank
-        cfg['rl_device'] = 'cuda:' + str(rank)
-
+    local_rank = int(os.getenv('LOCAL_RANK', '0'))
+    torch.cuda.set_device(local_rank)
+    multi_gpu = cfg_train['params']['multi_gpu']
+    cfg['rank'] = multi_gpu_get_rank(multi_gpu)
+    cfg['rl_device'] = 'cuda:' + str(cfg['rank'])
     sim_params = parse_sim_params(args, cfg, cfg_train)
-    task, env = parse_task(args, cfg, cfg_train, sim_params)
+
+    if cfg['env'].get('distill'):
+        task, env = parse_task_distill(args, cfg, cfg_train, sim_params)
+    else:
+        task, env = parse_task(args, cfg, cfg_train, sim_params)
 
     print('num_envs: {:d}'.format(env.num_envs))
     print('num_actions: {:d}'.format(env.num_actions))
@@ -81,6 +84,7 @@ def create_rlgpu_env(**kwargs):
     if frames > 1:
         env = wrappers.FrameStack(env, frames, False)
     return env
+
 
 
 class RLGPUAlgoObserver(AlgoObserver):
@@ -124,30 +128,54 @@ class RLGPUEnv(vecenv.IVecEnv):
         self.use_global_obs = (self.env.num_states > 0)
 
         self.full_state = {}
-        self.full_state["obs"] = self.reset()
+        
+        if cfg['env'].get('distill'):
+            self.full_state["obs"], expert, refined_obs = self.reset()
+        else:
+            self.full_state["obs"] = self.reset()
+            
         if self.use_global_obs:
             self.full_state["states"] = self.env.get_state()
         return
 
     def step(self, action):
-        next_obs, reward, is_done, info = self.env.step(action)
+        if cfg['env'].get('distill'):
+            next_obs, reward, is_done, info, expert, refined_obs = self.env.step(action)
+        else:
+            next_obs, reward, is_done, info = self.env.step(action)
+
 
         # todo: improve, return only dictinary
         self.full_state["obs"] = next_obs
-        if self.use_global_obs:
-            self.full_state["states"] = self.env.get_state()
-            return self.full_state, reward, is_done, info
+        if cfg['env'].get('distill'):
+            if self.use_global_obs:
+                self.full_state["states"] = self.env.get_state()
+                return self.full_state, reward, is_done, info, expert, refined_obs
+            else:
+                return self.full_state["obs"], reward, is_done, info, expert, refined_obs
         else:
-            return self.full_state["obs"], reward, is_done, info
+            if self.use_global_obs:
+                self.full_state["states"] = self.env.get_state()
+                return self.full_state, reward, is_done, info
+            else:
+                return self.full_state["obs"], reward, is_done, info
 
     def reset(self, env_ids=None):
-        self.full_state["obs"] = self.env.reset(env_ids)
-        if self.use_global_obs:
-            self.full_state["states"] = self.env.get_state()
-            return self.full_state
+        if cfg['env'].get('distill'):
+            self.full_state["obs"], expert, refined_obs = self.env.reset(env_ids)
+            if self.use_global_obs:
+                self.full_state["states"] = self.env.get_state()
+                return self.full_state, expert, refined_obs
+            else:
+                return self.full_state["obs"], expert, refined_obs        
         else:
-            return self.full_state["obs"]
-
+            self.full_state["obs"] = self.env.reset(env_ids)
+            if self.use_global_obs:
+                self.full_state["states"] = self.env.get_state()
+                return self.full_state
+            else:
+                return self.full_state["obs"]
+            
     def get_number_of_agents(self):
         return self.env.get_number_of_agents()
 
@@ -177,7 +205,13 @@ def build_alg_runner(algo_observer):
     runner.algo_factory.register_builder('skillmimic', lambda **kwargs : skillmimic_agent.SkillMimicAgent(**kwargs))
     runner.player_factory.register_builder('skillmimic', lambda **kwargs : skillmimic_players.SkillMimicPlayerContinuous(**kwargs))
     runner.model_builder.model_factory.register_builder('skillmimic', lambda network, **kwargs : skillmimic_models.SkillMimicModelContinuous(network))  
-
+    
+    # distill
+    runner.algo_factory.register_builder('skillmimic_distill', lambda **kwargs : skillmimic_agent_distll.SkillMimicAgentDistill(**kwargs)) #ZC0
+    runner.model_builder.network_factory.register_builder('skillmimic_distill', lambda **kwargs : skillmimic_network_builder_denseobj.SkillMimicBuilderFutureVec())
+    runner.player_factory.register_builder('skillmimic_distill', lambda **kwargs : skillmimic_players.SkillMimicPlayerContinuous(**kwargs))
+    runner.model_builder.model_factory.register_builder('skillmimic_distill', lambda network, **kwargs : skillmimic_models_denseobj.SkillMimicModelContinuous(network)) 
+    
     runner.model_builder.model_factory.register_builder('skillmimic_denseobj', lambda network, **kwargs : skillmimic_models_denseobj.SkillMimicModelContinuous(network)) 
     runner.model_builder.network_factory.register_builder('skillmimic', lambda **kwargs : skillmimic_network_builder.SkillMimicBuilder())
     runner.model_builder.network_factory.register_builder('skillmimic_denseobj', lambda **kwargs : skillmimic_network_builder_denseobj.SkillMimicBuilderFutureVec())
@@ -194,8 +228,13 @@ def main():
 
     cfg_train['params']['seed'] = set_seed(cfg_train['params'].get("seed", -1), cfg_train['params'].get("torch_deterministic", False))
 
-    if args.horovod:
-        cfg_train['params']['config']['multi_gpu'] = args.horovod
+    # if args.horovod:
+    #     cfg_train['params']['config']['multi_gpu'] = args.horovod
+    if args.multi_gpu:
+        cfg_train['params']['multi_gpu'] = True
+    else:
+        cfg_train['params']['multi_gpu'] = False
+
 
     if args.horizon_length != -1:
         cfg_train['params']['config']['horizon_length'] = args.horizon_length
@@ -205,6 +244,9 @@ def main():
         
     if args.motion_file:
         cfg['env']['motion_file'] = args.motion_file
+    
+    if args.refined_motion_file:
+        cfg['env']['refined_motion_file'] = args.refined_motion_file
 
     if args.play_dataset:
         cfg['env']['playdataset'] = True
@@ -261,6 +303,7 @@ def main():
 
     # Create default directories for weights and statistics
     cfg_train['params']['config']['train_dir'] = args.output_path
+    cfg_train['params']['config']['device'] = multi_gpu_get_rank(args.multi_gpu)
     
     vargs = vars(args)
 

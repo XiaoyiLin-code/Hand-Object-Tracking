@@ -121,6 +121,7 @@ def load_cfg(args):
     cfg["env"]["build_blender_motion"] = args.build_blender_motion
     cfg["env"]["blender_motion_length"] = args.blender_motion_length
     cfg["env"]["blender_motion_name"] = args.blender_motion_name
+    cfg["env"]["refined_motion_as_obs"] = args.refined_motion_as_obs
 
     cfg["name"] = args.task
     cfg["headless"] = args.headless
@@ -166,7 +167,7 @@ def load_cfg(args):
     if args.max_iterations > 0:
         cfg_train["params"]["config"]['max_epochs'] = args.max_iterations
     
-    if cfg_train["params"]["model"]["name"] == "skillmimic_denseobj":
+    if cfg_train["params"]["model"]["name"] == "skillmimic_denseobj" or cfg_train["params"]["model"]["name"]=="skillmimic_distill":
         cfg["env"]["enable_dense_obj"] = True
     else:
         cfg["env"]["enable_dense_obj"] = False
@@ -250,7 +251,13 @@ def get_args(benchmark=False):
         {"name": "--cfg_train", "type": str, "default": "Base", "help": "Training configuration file (.yaml)"},
         {"name": "--motion_file", "type": str,
             "default": "", "help": "Specify reference motion file"},
+        {"name": "--refined_motion_file", "type": str,
+            "default": "None", "help": "Specify reference motion file"},
+        {"name": "--refined_motion_as_obs", "action": "store_true", "default": False,
+            "help": "Specify if use reference motion file as obs"},
         {"name": "--play_dataset", "action": "store_true", "default": False,
+            "help": "Display the dataset"},
+        {"name": "--multi_gpu", "action": "store_true", "default": False,
             "help": "Display the dataset"},
         {"name": "--postproc_unihotdata", "action": "store_true", "default": False,
             "help": "Postprocess the raw dataset"},
@@ -334,6 +341,8 @@ def get_args(benchmark=False):
             "help": "Set it true to use object random scale, otherwise use fixed scale."},
         {"name": "--obj_rand_force", "action": "store_true", "default": False,
             "help": "Set it true to use object random force."},
+        {"name": "--save_refined_data", "action": "store_true", "default": False,
+            "help": "Set it true to save refined data."},
         {"name": "--enable_disgravity", "action": "store_true", "default": False,
             "help": "Set it true to set the disgravity for object."},\
         {"name": "--enable_dof_obs", "action": "store_true", "default": False,

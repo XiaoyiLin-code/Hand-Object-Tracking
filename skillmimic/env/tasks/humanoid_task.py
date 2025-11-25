@@ -144,6 +144,8 @@ class HumanoidWholeBody(BaseTask):
             self._num_obs += 51 * 2 + 1
         if "Insert" in self.cfg['name']:
             self._num_obs += obj_obs_size
+        # if self._enable_wrist_local_obs:
+        #     self._num_obs -= 15
         if "DexGenBallPlay" in self.cfg['name']:
             self._num_obs = 387
         return
