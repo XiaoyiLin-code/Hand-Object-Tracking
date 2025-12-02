@@ -101,27 +101,20 @@ def load_cfg(args):
     cfg["env"]["reweight_alpha"] = args.reweight_alpha
     cfg["env"]["state_search_to_align_reward"] = args.state_search_to_align_reward
     cfg["env"]["eval_randskill"] = args.eval_randskill
-    cfg["env"]["enable_buffernode"] = args.enable_buffernode
-    cfg["env"]["enable_rand_target_obs"] = args.enable_rand_target_obs
     cfg["env"]["enable_future_target_obs"] = args.enable_future_target_obs
-    cfg["env"]["enable_text_obs"] = args.enable_text_obs
-    cfg["env"]["enable_nearest_vector"] = args.enable_nearest_vector
     cfg["env"]["enable_obj_keypoints"] = args.enable_obj_keypoints
     cfg["env"]["enable_ig_scale"] = args.enable_ig_scale
-    cfg["env"]["enable_ig_plus_reward"] = args.enable_ig_plus_reward
-    cfg["env"]["enable_wrist_local_obs"] = args.enable_wrist_local_obs
-    cfg["env"]["show_current_traj"] = args.show_current_traj
     cfg["env"]["use_delta_action"] = args.use_delta_action
     cfg["env"]["use_res_action"] = args.use_res_action
     cfg["env"]["obj_rand_scale"] = args.obj_rand_scale
     cfg["env"]["applyDisturbance"] = args.obj_rand_force
-    cfg["env"]["enableDisgravity"] = args.enable_disgravity
     cfg["env"]["enableDofObs"] = args.enable_dof_obs
     cfg["env"]["enableEarlyTermination"] = args.enable_early_termination
     cfg["env"]["build_blender_motion"] = args.build_blender_motion
     cfg["env"]["blender_motion_length"] = args.blender_motion_length
     cfg["env"]["blender_motion_name"] = args.blender_motion_name
     cfg["env"]["refined_motion_as_obs"] = args.refined_motion_as_obs
+    cfg["env"]["hand_model"] = args.hand_model
 
     cfg["name"] = args.task
     cfg["headless"] = args.headless
@@ -224,7 +217,7 @@ def get_args(benchmark=False):
     custom_parameters = [
         {"name": "--test", "action": "store_true", "default": False,
             "help": "Run trained policy, no training"},
-        {"name": "--hand_model", "action": "store_true", "type": str, "default": "mano",
+        {"name": "--hand_model", "type": str, "default": "mano",
             "help": "Can be shadow, mano, allegro"},
         {"name": "--play", "action": "store_true", "default": False,
             "help": "Run trained policy, the same as test, can be used only by rl_games RL library"},
@@ -315,26 +308,12 @@ def get_args(benchmark=False):
             "help": "Specify whether to align frame-wise rewards by searching for similar states during randomized initialization."},
         {"name": "--eval_randskill", "action": "store_true", "default": False,
             "help": "Specify whether to evaluate random skill while playing the dataset"},
-        {"name": "--enable_buffernode", "action": "store_true", "default": False,
-            "help": "Enable or disable the buffernode functionality."},
-        {"name": "--enable_rand_target_obs", "action": "store_true", "default": False,
-            "help": "Enable or disable the random target observation functionality."},
         {"name": "--enable_future_target_obs", "action": "store_true", "default": False,
             "help": "Enable or disable the future target observation functionality."},
-        {"name": "--enable_text_obs", "action": "store_true", "default": False,
-            "help": "Enable or disable the skill label observation functionality."},
-        {"name": "--enable_nearest_vector", "action": "store_true", "default": False,
-            "help": "Enable or disable the nearest vector observation functionality."},
         {"name": "--enable_obj_keypoints", "action": "store_true", "default": False,
             "help": "Enable or disable the object keypoints observation functionality."},
         {"name": "--enable_ig_scale", "action": "store_true", "default": False,
             "help": "Enable or disable the scaling for the reward computation of interaction graph."},
-        {"name": "--enable_ig_plus_reward", "action": "store_true", "default": False,
-            "help": "Enable or disable the object to keypoints relative position reward."},
-        {"name": "--enable_wrist_local_obs", "action": "store_true", "default": False,
-            "help": "Enable or disable the object to keypoints relative position reward."},
-        {"name": "--show_current_traj", "action": "store_true", "default": False,
-            "help": "Set it true to show current trajectory, otherwise show the next frame trajectory."},
         {"name": "--use_delta_action", "action": "store_true", "default": False,
             "help": "Set it true to use delta action, otherwise use absolute action."},
         {"name": "--use_res_action", "action": "store_true", "default": False,
@@ -345,8 +324,6 @@ def get_args(benchmark=False):
             "help": "Set it true to use object random force."},
         {"name": "--save_refined_data", "action": "store_true", "default": False,
             "help": "Set it true to save refined data."},
-        {"name": "--enable_disgravity", "action": "store_true", "default": False,
-            "help": "Set it true to set the disgravity for object."},\
         {"name": "--enable_dof_obs", "action": "store_true", "default": False,
             "help": "Set it true to set the disgravity for object."},
         {"name": "--enable_early_termination", "action": "store_true", "default": False,},

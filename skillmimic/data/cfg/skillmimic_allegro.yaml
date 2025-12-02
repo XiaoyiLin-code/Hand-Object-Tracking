@@ -7,11 +7,8 @@ env:
   enableDebugVis: False
   playdataset: False
   postproc_unihotdata: False
-  projtype: "None"
   saveImages: "" #False
-  initVel: False
   bodyObjKeypoint: False
-  showObjectKeyPoints: False
   disturbanceForceScale: 10 #
   
   pdControl: True
@@ -21,13 +18,10 @@ env:
   hybridInitProb: 0.5
   dataFPS: 60 #ZC
   dataFramesScale: 1. # 60 fps
-  ballSize: 1.
-  ballRestitution: 0.
-  ballDensity: 100.
+  objSize: 1.
+  objRestitution: 0.
+  objDensity: 500.
 
-
-  localRootObs: False
-  
   keyBodies: [   
   "link_0.0", 
   "link_1.0", 
@@ -47,25 +41,6 @@ env:
   "link_15.0",
   'base_link'] # not include root
     
-  keyBodiesWrist: [   
-  "link_0.0", 
-  "link_1.0", 
-  "link_2.0", 
-  "link_3.0", 
-  "link_4.0", 
-  "link_5.0", 
-  "link_6.0", 
-  "link_7.0", 
-  "link_8.0", 
-  "link_9.0", 
-  "link_10.0", 
-  "link_11.0", 
-  "link_12.0", 
-  "link_13.0", 
-  "link_14.0", 
-  "link_15.0",
-  'base_link']  #, "L_Wrist", "R_Wrist"
-  #contactBodies: ["L_Index3", "L_Middle3", "L_Pinky3", "L_Ring3","L_Thumb3","R_Index3", "R_Middle3", "R_Pinky3", "R_Ring3","R_Thumb3"] #["right_foot", "left_foot"]
   contactBodies: [   
   "link_0.0", 
   "link_1.0", 
@@ -84,12 +59,10 @@ env:
   "link_14.0", 
   "link_15.0",
   'base_link']
-  terminationHeight: 0.25
-
+  
   asset:
     assetRoot: "skillmimic/data/assets" #projectname
     assetFileName: "mjcf/allegro_hand.xml" #"mjcf/mocap_humanoid.xml"
-  terminationHeight: 0.25
   
   enableEarlyTermination: True #True
 
@@ -119,8 +92,6 @@ env:
 
     cg1: 5.
     cg2: 5.
-
-  enableTaskObs: False #ZC0
 
 sim:
   substeps: 2 #ZC

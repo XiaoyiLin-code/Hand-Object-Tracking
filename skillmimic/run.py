@@ -279,7 +279,7 @@ def main():
         cfg['env']['dataFramesScale'] = args.frames_scale
 
     if args.ball_size!= 0.:
-        cfg['env']['ballSize'] = args.ball_size
+        cfg['env']['objSize'] = args.ball_size
 
     if args.resume_from:
         cfg_train['params']['config']['resume_from'] = args.resume_from

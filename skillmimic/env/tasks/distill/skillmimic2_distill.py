@@ -20,7 +20,7 @@ from utils.motion_data_handler import MotionDataHandler
 
 from rl_games.algos_torch import torch_ext
 
-from env.tasks.skillmimic2_rand_independ import SkillMimic2BallPlayRandInd
+from env.tasks.skillmimic2_rand import SkillMimicHandRand
 from learning import skillmimic_network_builder_denseobj
 from learning.distill import skillmimic_models_distill
 import yaml
@@ -43,7 +43,7 @@ def get_all_paths(dir_path):
     return paths
 
 
-class Distill(SkillMimic2BallPlayRandInd):
+class Distill(SkillMimicHandRand):
     def print_memory_stats(self, prefix=""):
         if torch.cuda.is_available():
             print(f"{prefix} Memory - Allocated: {torch.cuda.memory_allocated()/1e9:.2f}GB, "
@@ -125,7 +125,7 @@ class Distill(SkillMimic2BallPlayRandInd):
         if self.refined_motion_file:
             self.refined_hoi_data_batch = torch.zeros([self.num_envs, self.max_episode_length, self.ref_hoi_obs_size], device=self.device, dtype=torch.float)
             self._motion_data_refined = MotionDataHandler(self.refined_motion_file, self.device, self._key_body_ids, self.cfg, self.num_envs, 
-                                                self.max_episode_length, self.reward_weights_default, self.init_vel, self.play_dataset,
+                                                self.max_episode_length, self.reward_weights_default,  self.play_dataset,
                                                 reweight=self.reweight, reweight_alpha=self.reweight_alpha)
         for motion_id, data_dict in self._motion_data.hoi_data_dict.items():
             original_filename = os.path.basename(data_dict['hoi_data_path'])
@@ -225,12 +225,8 @@ class Distill(SkillMimic2BallPlayRandInd):
     def _compute_observations(self, env_ids=None): # called @ reset & post step
         obs = None
         obs_refined = None
-        if self._enable_wrist_local_obs:
-            humanoid_obs = self._compute_humanoid_local_obs(env_ids)
-            obj_obs = self._compute_obj_local_obs(env_ids)
-        else:
-            humanoid_obs = self._compute_humanoid_obs(env_ids)
-            obj_obs = self._compute_obj_obs(env_ids)
+        humanoid_obs = self._compute_humanoid_obs(env_ids)
+        obj_obs = self._compute_obj_obs(env_ids)
         if self.skill_labels[env_ids].shape != torch.Size([1]):
             obj_obs_cond = (self.skill_labels[env_ids]!=9).squeeze(0).unsqueeze(1)
         else:
@@ -239,10 +235,6 @@ class Distill(SkillMimic2BallPlayRandInd):
         obs = humanoid_obs
         # obj2_obs = self._compute_obj2_obs(env_ids)
         obs = torch.cat([obs, obj_obs], dim=-1)
-        if self._enable_task_obs:
-            task_obs = self.compute_task_obs(env_ids)
-            obs = torch.cat([obs, task_obs], dim = -1)
-
         if (env_ids is None): #Z
             env_ids = torch.arange(self.num_envs)
         ts = self.progress_buf[env_ids].clone()
@@ -376,11 +368,6 @@ class Distill(SkillMimic2BallPlayRandInd):
                                       key_frame_times), dim=-1)
         obs_refined = torch.cat((obs,tracking_obs_refined),dim=-1)
         obs = torch.cat((obs,tracking_obs),dim=-1)
-
-        if self._enable_text_obs:
-            textemb_batch = self.hoi_data_label_batch[env_ids].clone()
-            obs = torch.cat((obs, textemb_batch), dim=-1)
-            obs_refined = torch.cat((obs_refined, textemb_batch), dim=-1)
 
         self.obs_buf[env_ids] = obs
 

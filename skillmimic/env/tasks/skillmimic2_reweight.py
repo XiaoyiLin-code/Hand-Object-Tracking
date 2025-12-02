@@ -47,7 +47,7 @@ class SkillMimic2BallPlayReweight(SkillMimicBallPlayBlender):
         
         self.hoi_data_batch = torch.zeros([self.num_envs, self.max_episode_length, self.ref_hoi_obs_size], device=self.device, dtype=torch.float)
         self._motion_data = MotionDataHandler(motion_file, self.device, self._key_body_ids, self.cfg, self.num_envs, 
-                                            self.max_episode_length, self.reward_weights_default, self.init_vel, self.play_dataset,
+                                            self.max_episode_length, self.reward_weights_default, self.play_dataset,
                                             reweight=self.reweight, reweight_alpha=self.reweight_alpha)
         return
         

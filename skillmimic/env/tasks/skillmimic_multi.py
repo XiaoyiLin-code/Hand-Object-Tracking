@@ -39,7 +39,7 @@ class MultiSkillMimicBallPlay(SkillMimicBallPlay):
         self.hoi_data_batch = torch.zeros([self.num_envs, self.max_episode_length, self.ref_hoi_obs_size], device=self.device, dtype=torch.float)
 
         self._motion_data = MultiMotionDataHandler(motion_file, self.device, self._key_body_ids, self.cfg, self.num_envs, 
-                                            self.max_episode_length, self.reward_weights_default, self.init_vel, self.play_dataset,
+                                            self.max_episode_length, self.reward_weights_default, self.play_dataset,
                                             map_env_2_object=self._map_env_2_object_tensor)
     
     def _reset_random_ref_state_init(self, env_ids): #Z11
@@ -116,7 +116,7 @@ class MultiSkillMimic2BallPlayReweight(MultiSkillMimicBallPlay):
         
         self.hoi_data_batch = torch.zeros([self.num_envs, self.max_episode_length, self.ref_hoi_obs_size], device=self.device, dtype=torch.float)
         self._motion_data = MultiMotionDataHandler(motion_file, self.device, self._key_body_ids, self.cfg, self.num_envs, 
-                                                    self.max_episode_length, self.reward_weights_default, self.init_vel, self.play_dataset,
+                                                    self.max_episode_length, self.reward_weights_default,  self.play_dataset,
                                                     reweight=self.reweight, reweight_alpha=self.reweight_alpha)
         return
         
@@ -209,7 +209,7 @@ class MultiSkillMimic2BallPlayReweight(MultiSkillMimicBallPlay):
         return
 
 
-class MultiSkillMimic2BallPlayRandInd(MultiSkillMimic2BallPlayReweight):
+class MultiSkillMimicHandRand(MultiSkillMimic2BallPlayReweight):
     def __init__(self, cfg, sim_params, physics_engine, device_type, device_id, headless):
         super().__init__(cfg=cfg,
                                 sim_params=sim_params,

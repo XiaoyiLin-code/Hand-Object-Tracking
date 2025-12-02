@@ -32,9 +32,9 @@ from env.tasks.distill.skillmimic2_multiobj_distill import MultiObjDistill
 from env.tasks.open_loop import OpenLoop
 from env.tasks.skillmimic import SkillMimicBallPlay
 from env.tasks.skillmimic_multi import MultiSkillMimicBallPlay
-from env.tasks.skillmimic_multi import MultiSkillMimic2BallPlayRandInd
+from env.tasks.skillmimic_multi import MultiSkillMimicHandRand
 from env.tasks.skillmimic2_reweight import SkillMimic2BallPlayReweight
-from env.tasks.skillmimic2_rand_independ import SkillMimic2BallPlayRandInd
+from env.tasks.skillmimic2_rand import SkillMimicHandRand
 import numpy as np
 
 

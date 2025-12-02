@@ -21,7 +21,7 @@ from utils.obj_distill_motion_data_handler import MultiMotionDataHandler
 
 
 from rl_games.algos_torch import torch_ext
-from env.tasks.skillmimic2_rand_independ import SkillMimic2BallPlayRandInd
+from env.tasks.skillmimic2_rand import SkillMimicHandRand
 from learning import skillmimic_network_builder_denseobj
 from learning.distill import skillmimic_models_distill
 
@@ -44,7 +44,7 @@ def get_all_paths(dir_path):
     return paths
 
 
-class MultiObjDistill(SkillMimic2BallPlayRandInd):
+class MultiObjDistill(SkillMimicHandRand):
     def print_memory_stats(self, prefix=""):
         if torch.cuda.is_available():
             print(f"{prefix} Memory - Allocated: {torch.cuda.memory_allocated()/1e9:.2f}GB, "
@@ -203,7 +203,7 @@ class MultiObjDistill(SkillMimic2BallPlayRandInd):
         if self.refined_motion_file:
             self.refined_hoi_data_batch = torch.zeros([self.num_envs, self.max_episode_length, self.ref_hoi_obs_size], device=self.device, dtype=torch.float)
             self._motion_data_refined = MultiMotionDataHandler(self.refined_motion_file, self.device, self._key_body_ids, self.cfg, self.num_envs, 
-                                                self.max_episode_length, self.reward_weights_default, self.init_vel, self.play_dataset,
+                                                self.max_episode_length, self.reward_weights_default,  self.play_dataset,
                                                 reweight=self.reweight, reweight_alpha=self.reweight_alpha)
             # for key, item in self._motion_data.hoi_data_dict.items():
             #     print(item['hoi_data_path'])            
@@ -232,13 +232,7 @@ class MultiObjDistill(SkillMimic2BallPlayRandInd):
 
             # Time observation buffer preparation
             t0 = time.time()
-            if self.body_to_obj_keypoint:
-                teacher_obs_buf = torch.cat([
-                    self.obs_buf[:, :868], 
-                    self.obs_buf[:, 931:]
-                ], dim=1) 
-            else:
-                teacher_obs_buf= self.obs_buf
+            teacher_obs_buf= self.obs_buf
             obs_buf_time = time.time() - t0
             self.timing_stats['obs_buf_prep'].append(obs_buf_time)
             
@@ -340,13 +334,7 @@ class MultiObjDistill(SkillMimic2BallPlayRandInd):
         self.sample_indices = torch.arange(self.num_envs, device=self.device)
         with torch.no_grad():
             batched_forward = vmap(self.single_model_forward, in_dims=(0, 0, 0, 0))
-            if self.body_to_obj_keypoint:
-                teacher_obs_buf = torch.cat([
-                    self.obs_buf[:, :868], 
-                    self.obs_buf[:, 931:]
-                ], dim=1) 
-            else:
-                teacher_obs_buf= self.obs_buf
+            teacher_obs_buf= self.obs_buf
             selected_action = batched_forward(self.stacked_params, teacher_obs_buf.unsqueeze(0).repeat(self.running_means_all.shape[0], 1, 1), self.running_means_all, self.running_vars_all)
             teacher_actions_all = torch.clamp(selected_action, min=-1.0, max=1.0)
             # Select the appropriate action for each env from the batched teacher predictions  
@@ -384,10 +372,6 @@ class MultiObjDistill(SkillMimic2BallPlayRandInd):
         obs = humanoid_obs
         # obj2_obs = self._compute_obj2_obs(env_ids)
         obs = torch.cat([obs, obj_obs], dim=-1)
-
-        if self._enable_task_obs:
-            task_obs = self.compute_task_obs(env_ids)
-            obs = torch.cat([obs, task_obs], dim = -1)
 
         # Time reference observation extraction
         t0 = time.time()
@@ -516,10 +500,6 @@ class MultiObjDistill(SkillMimic2BallPlayRandInd):
         if self.refined_motion_as_obs:
             obs_refined = torch.cat((obs,tracking_obs_refined),dim=-1)
         obs = torch.cat((obs,tracking_obs),dim=-1)
-
-        if self._enable_text_obs:
-            textemb_batch = self.hoi_data_label_batch[env_ids].clone()
-            obs = torch.cat((obs, textemb_batch), dim=-1)
 
         self.obs_buf[env_ids] = obs
         self.timing_stats['total_compute_obs'].append(time.time() - obs_start)

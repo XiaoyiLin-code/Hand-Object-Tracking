@@ -12,25 +12,11 @@ from isaacgym.torch_utils import *
 
 
 class MotionDataHandler:
-    def __init__(self, motion_file, device, key_body_ids, cfg, num_envs, max_episode_length, reward_weights_default, 
-                init_vel=False, play_dataset=False, reweight=False, reweight_alpha=0, use_old_reweight=False,
-                postproc_unihotdata=False, duplicate_last_frame=False):
+    def __init__(self, motion_file, device, key_body_ids, cfg, num_envs, max_episode_length, reward_weights_default, play_dataset=False, reweight=False, reweight_alpha=0):
         self.device = device
-        ########################################## changed by me warning hardcode   keyBodies: ["Head","R_Index3", "R_Middle3", "R_Pinky3", "R_Ring3","R_Thumb3"] 
         self._key_body_ids = key_body_ids
-        self.duplicate_last_frame = duplicate_last_frame
-        '''
-        from self.gym.get_actor_dof_dict(env_ptr,actor_handle)
-        'L_Index3_x': 60, 'L_Index3_y': 61, 'L_Index3_z': 62, 'L_Knee_x': 3, 'L_Knee_y': 4, 'L_Knee_z': 5, 'L_Middle1_x': 63, 'L_Middle1_y': 64, 'L_Middle1_z': 65, 'L_Middle2_x': 66, 'L_Middle2_y': 67, 'L_Middle2_z': 68, 'L_Middle3_x': 69, 'L_Middle3_y': 70, 'L_Middle3_z': 71, 'L_Pinky1_x': 72, 'L_Pinky1_y': 73, 'L_Pinky1_z': 74, 'L_Pinky2_x': 75, 'L_Pinky2_y': 76, 'L_Pinky2_z': 77, 'L_Pinky3_x': 78, 'L_Pinky3_y': 79, 'L_Pinky3_z': 80, 'L_Ring1_x': 81, 'L_Ring1_y': 82, 'L_Ring1_z': 83, 'L_Ring2_x': 84, 'L_Ring2_y': 85, 'L_Ring2_z': 86, 'L_Ring3_x': 87, 'L_Ring3_y': 88, 'L_Ring3_z': 89, 'L_Shoulder_x': 45, 'L_Shoulder_y': 46, 'L_Shoulder_z': 47, 'L_Thorax_x': 42, 'L_Thorax_y': 43, 'L_Thorax_z': 44, 'L_Thumb1_x': 90, 'L_Thumb1_y': 91, 'L_Thumb1_z': 92, 'L_Thumb2_x': 93, 'L_Thumb2_y': 94, 'L_Thumb2_z': 95, 'L_Thumb3_x': 96, 'L_Thumb3_y': 97, 'L_Thumb3_z': 98, 'L_Toe_x': 9, 'L_Toe_y': 10, 'L_Toe_z': 11, 'L_Wrist_x': 51, 'L_Wrist_y': 52, 'L_Wrist_z': 53, 'Neck_x': 36, 'Neck_y': 37, 'Neck_z': 38, 'R_Ankle_x': 18, 'R_Ankle_y': 19, 'R_Ankle_z': 20, 'R_Elbow_x': 105, 'R_Elbow_y': 106, 'R_Elbow_z': 107, 'R_Hip_x': 12, 'R_Hip_y': 13, 'R_Hip_z': 14, 'R_Index1_x': 111, 'R_Index1_y': 112, 'R_Index1_z': 113, 'R_Index2_x': 114, 'R_Index2_y': 115, 'R_Index2_z': 116, 'R_Index3_x': 117, 'R_Index3_y': 118, 'R_Index3_z': 119, 'R_Knee_x': 15, 'R_Knee_y': 16, 'R_Knee_z': 17, 'R_Middle1_x': 120, 'R_Middle1_y': 121, 'R_Middle1_z': 122, 'R_Middle2_x': 123, 'R_Middle2_y': 124, 'R_Middle2_z': 125, 'R_Middle3_x': 126, 'R_Middle3_y': 127, 'R_Middle3_z': 128, 'R_Pinky1_x': 129, 'R_Pinky1_y': 130, 'R_Pinky1_z': 131, 'R_Pinky2_x': 132, 'R_Pinky2_y': 133, 'R_Pinky2_z': 134, 'R_Pinky3_x': 135, 'R_Pinky3_y': 136, 'R_Pinky3_z': 137, 'R_Ring1_x': 138, 'R_Ring1_y': 139, 'R_Ring1_z': 140, 'R_Ring2_x': 141, 'R_Ring2_y': 142, 'R_Ring2_z': 143, 'R_Ring3_x': 144, 'R_Ring3_y': 145, 'R_Ring3_z': 146, 'R_Shoulder_x': 102, 'R_Shoulder_y': 103, 'R_Shoulder_z': 104, 'R_Thorax_x': 99, 'R_Thorax_y': 100, 'R_Thorax_z': 101, 'R_Thumb1_x': 147, 'R_Thumb1_y': 148, 'R_Thumb1_z': 149, 'R_Thumb2_x': 150, 'R_Thumb2_y': 151, 'R_Thumb2_z': 152, 'R_Thumb3_x': 153, 'R_Thumb3_y': 154, 'R_Thumb3_z': 155, 'R_Toe_x': 21, 'R_Toe_y': 22, 'R_Toe_z': 23, 'R_Wrist_x': 108, 'R_Wrist_y': 109, 'R_Wrist_z': 110, 'Spine2_x': 30, 'Spine2_y': 31, 'Spine2_z': 32, 'Spine_x': 27, 'Spine_y': 28, 'Spine_z': 29, 'Torso_x': 24, 'Torso_y': 25, 'Torso_z': 26}
-
-        '''
-        #self._key_dof = torch.tensor([39, 111, 114, 117, 120, 123, 126, 129, 132, 135, 138, 141, 144, 147, 150, 153], device='cuda:0')
-        #############################################
         self.cfg = cfg
-        self.init_vel = init_vel
-        self.play_dataset = play_dataset #V1
-        self.postproc_unihotdata = postproc_unihotdata #V1
-        
+        self.play_dataset = play_dataset
         self.hoi_data_dict = {}
         self.hoi_data_label_batch = None
         self.motion_lengths = None
@@ -49,20 +35,22 @@ class MotionDataHandler:
         self.reward_weights = {}
         self.reward_weights["p"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["p"])
         self.reward_weights["r"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["r"])
-        self.reward_weights["op"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["op"])
-        self.reward_weights["ig"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["ig"])
-        self.reward_weights["cg1"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["cg1"])
-        self.reward_weights["cg2"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["cg2"])
         self.reward_weights["pv"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["pv"])
         self.reward_weights["rv"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["rv"])
+        self.reward_weights["wp"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["wp"])
+        self.reward_weights["wr"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["wr"])
+        self.reward_weights["wpv"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["wpv"])
+        self.reward_weights["wrv"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["wrv"])
+        self.reward_weights["op"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["op"])
         self.reward_weights["or"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["or"])
         self.reward_weights["opv"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["opv"])
         self.reward_weights["orv"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["orv"])
+        self.reward_weights["ig"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["ig"])
+        self.reward_weights["cg1"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["cg1"])
+        self.reward_weights["cg2"] = (torch.ones((self.num_envs), device=self.device, dtype=torch.float)*self.reward_weights_default["cg2"])
         self._init_vectorized_buffers() #ZQH
     
     def _init_vectorized_buffers(self):
-        #ZQH 新增函数: 初始化 GPU 上的 _motion_weights (clip-level) 与 time_sample_rate_tensor (time-level)
-
         # # 1) clip-level采样权重，先全部置为1，稍后由 _compute_motion_weights(...) 或 reweight函数修正
         # self._motion_weights_tensor = torch.ones(
         #     self.num_motions, device=self.device, dtype=torch.float32
@@ -102,18 +90,6 @@ class MotionDataHandler:
             self.hoi_data_dict[i] = loaded_dict
             self.motion_lengths[i] = loaded_dict['hoi_data'].shape[0]
             self.motion_class[i] = int(loaded_dict['hoi_data_text'])
-            # For graspswitch (005) and objrotswitch (006) as their motions are saved in a way that the first few frame are different grasp,
-
-
-            if self.motion_class[i] == 5 or self.motion_class[i] == 6: 
-                pass
-            
-            ''' # changed by me warning directly comment out
-            if self.skill_name in ['layup', "SHOT_up"]:
-                layup_target_ind = torch.argmax(loaded_dict['obj_pos'][:, 2])
-                self.layup_target[i] = loaded_dict['obj_pos'][layup_target_ind]
-                self.root_target[i] = loaded_dict['root_pos'][layup_target_ind]
-            '''
 
         self._compute_motion_weights(self.motion_class)
         self.motion_class_tensor = torch.tensor(self.motion_class, dtype=torch.long, device=self.device) #ZQH
@@ -136,232 +112,70 @@ class MotionDataHandler:
         data_frames_scale = self.cfg["env"]["dataFramesScale"]
         fps_data = self.cfg["env"]["dataFPS"] * data_frames_scale
         
-        if isinstance(hoi_data, torch.Tensor):
-            loaded_dict['hoi_data'] = hoi_data.detach().to(self.device)
-            loaded_dict['root_pos'] = loaded_dict['hoi_data'][:, 0:3].clone()
-            loaded_dict['root_pos_vel'] = self._compute_velocity(loaded_dict['root_pos'], fps_data)
+        loaded_dict['hoi_data'] = hoi_data
+        loaded_dict['root_pos'] = loaded_dict['hoi_data']['root_pos'].clone().to(self.device)
+        loaded_dict['root_pos_vel'] = self._compute_velocity(loaded_dict['root_pos'], fps_data)
+        loaded_dict['root_rot'] = loaded_dict['root_rot'] = loaded_dict['hoi_data']['root_rot'].clone().to(self.device) 
+        self.smooth_quat_seq(loaded_dict['root_rot'])
 
-            #loaded_dict['root_rot_3d'] = loaded_dict['hoi_data'][:, 3:6].clone() #changeged by me as I want quat
-            #loaded_dict['root_rot'] = torch_utils.exp_map_to_quat(loaded_dict['root_rot_3d']).clone() #changeged by me as I want quat
-            loaded_dict['root_rot'] = loaded_dict['root_rot'] = loaded_dict['hoi_data'][:, 3:7].clone() 
-            self.smooth_quat_seq(loaded_dict['root_rot'])
+        q_diff = torch_utils.quat_multiply(
+            torch_utils.quat_conjugate(loaded_dict['root_rot'][:-1, :].clone()), 
+            loaded_dict['root_rot'][1:, :].clone()
+        )
+        angle, axis = torch_utils.quat_to_angle_axis(q_diff)
+        exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
+        loaded_dict['root_rot_vel'] = exp_map*fps_data
+        loaded_dict['root_rot_vel'] = torch.cat((torch.zeros((1, 3)).to(self.device),loaded_dict['root_rot_vel']),dim=0)
+        
+        loaded_dict['dof_pos'] = torch.cat((loaded_dict['hoi_data']['wrist_dof'], loaded_dict['hoi_data']['fingers_dof']), dim=1).clone().float().to(self.device) #changeged by me
+        loaded_dict['dof_pos_vel'] = self._compute_velocity(loaded_dict['dof_pos'], fps_data)
+        
+        loaded_dict['body_pos'] = loaded_dict['hoi_data']['body_pos'].clone().float().to(self.device)
+        loaded_dict['key_body_pos'] = loaded_dict['body_pos'].clone()
+        loaded_dict['key_body_pos_vel'] = self._compute_velocity(loaded_dict['key_body_pos'], fps_data)
 
-            q_diff = torch_utils.quat_multiply(
-                torch_utils.quat_conjugate(loaded_dict['root_rot'][:-1, :].clone()), 
-                loaded_dict['root_rot'][1:, :].clone()
-            )
-            '''
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['root_rot_vel'] = self._compute_velocity(exp_map, fps_data)
-            '''
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['root_rot_vel'] = exp_map*fps_data
-            loaded_dict['root_rot_vel'] = torch.cat((
-                torch.zeros((1, loaded_dict['root_rot_vel'].shape[-1])).to(self.device),
-                loaded_dict['root_rot_vel'])
-                ,dim=0)
-            
-            data_length = loaded_dict['hoi_data'].shape[0]
-            #loaded_dict['dof_pos'] = loaded_dict['hoi_data'][:, 9:9+156].clone()
-            #dof_pos_key_body_ids = torch.cat([torch.arange(self._key_dof[i], self._key_dof[i]+ 3 ) for i in range(len(self._key_dof))]) 
-            #loaded_dict['dof_pos'] = loaded_dict['hoi_data'][:, 9:9+156].clone()[:, torch.tensor(dof_pos_key_body_ids)] #changeged by me
-            loaded_dict['dof_pos'] = loaded_dict['hoi_data'][:, 7:7+51].clone() #changeged by me
-            loaded_dict['dof_pos_vel'] = self._compute_velocity(loaded_dict['dof_pos'], fps_data)
-            #loaded_dict['body_pos'] = loaded_dict['hoi_data'][:, 165: 165+53*3].clone().view(data_length, 53, 3)
-            #loaded_dict['body_pos'] = loaded_dict['hoi_data'][:, 165: 165+53*3].clone().view(data_length, 53, 3)[:, torch.tensor(self._key_body_ids), :] #changeged by me
-            loaded_dict['body_pos'] = loaded_dict['hoi_data'][:, 58: 58+45].clone() #changeged by me
-            #loaded_dict['key_body_pos'] = loaded_dict['body_pos'][:, self._key_body_ids, :].view(data_length, -1).clone()
-            loaded_dict['key_body_pos'] = loaded_dict['body_pos'].clone() #changeged by me
-            loaded_dict['key_body_pos_vel'] = self._compute_velocity(loaded_dict['key_body_pos'], fps_data)
+        loaded_dict['obj_pos'] = loaded_dict['hoi_data']['obj_pos'].clone().float().to(self.device)
+        loaded_dict['obj_pos_vel'] = loaded_dict['hoi_data']['obj_pos_vel']
+        loaded_dict['obj_rot'] = loaded_dict['hoi_data']['obj_rot'].clone().float().to(self.device)
+        self.smooth_quat_seq(loaded_dict['obj_rot'])
 
-            loaded_dict['obj_pos'] = loaded_dict['hoi_data'][:, 103:103+3].clone()
-            loaded_dict['obj_pos_vel'] = self._compute_velocity(loaded_dict['obj_pos'], fps_data)
-
-            loaded_dict['obj_rot'] = loaded_dict['hoi_data'][:, 106:106+4].clone()#[:, [1, 2, 3, 0]].clone()
-            self.smooth_quat_seq(loaded_dict['obj_rot'])
-
-            q_diff = torch_utils.quat_multiply(
-                torch_utils.quat_conjugate(loaded_dict['obj_rot'][:-1, :].clone()), 
-                loaded_dict['obj_rot'][1:, :].clone()
-            )
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['obj_rot_vel'] = exp_map*fps_data
-            loaded_dict['obj_rot_vel'] = torch.cat((
-                torch.zeros((1, loaded_dict['obj_rot_vel'].shape[-1])).to(self.device),
-                loaded_dict['obj_rot_vel'])
-                ,dim=0)
-
-            # object2
-            loaded_dict['obj2_pos'] = loaded_dict['hoi_data'][:, 110:110+3].clone()
-            loaded_dict['obj2_pos_vel'] = self._compute_velocity(loaded_dict['obj_pos'], fps_data)
-
-            loaded_dict['obj2_rot'] = loaded_dict['hoi_data'][:, 113:113+4].clone()#[:, [1, 2, 3, 0]].clone()
-            self.smooth_quat_seq(loaded_dict['obj2_rot'])
-
-            q_diff = torch_utils.quat_multiply(
-                torch_utils.quat_conjugate(loaded_dict['obj2_rot'][:-1, :].clone()), 
-                loaded_dict['obj2_rot'][1:, :].clone()
-            )
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['obj2_rot_vel'] = exp_map*fps_data
-            loaded_dict['obj2_rot_vel'] = torch.cat((
-                torch.zeros((1, loaded_dict['obj2_rot_vel'].shape[-1])).to(self.device),
-                loaded_dict['obj2_rot_vel'])
-                ,dim=0)
-
-
-            loaded_dict['contact1'] = torch.round(loaded_dict['hoi_data'][:, 117:117+1].clone())
-            loaded_dict['contact2'] = torch.round(loaded_dict['hoi_data'][:, 118:118+1].clone())
-        elif isinstance(hoi_data, dict):
-            loaded_dict['hoi_data'] = hoi_data
-            loaded_dict['root_pos'] = loaded_dict['hoi_data']['root_pos'].clone().to(self.device)
-            loaded_dict['root_pos_vel'] = self._compute_velocity(loaded_dict['root_pos'], fps_data)
-
-            loaded_dict['root_rot'] = loaded_dict['root_rot'] = loaded_dict['hoi_data']['root_rot'].clone().to(self.device) 
-            self.smooth_quat_seq(loaded_dict['root_rot'])
-
-            q_diff = torch_utils.quat_multiply(
-                torch_utils.quat_conjugate(loaded_dict['root_rot'][:-1, :].clone()), 
-                loaded_dict['root_rot'][1:, :].clone()
-            )
-            '''
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['root_rot_vel'] = self._compute_velocity(exp_map, fps_data)
-            '''
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['root_rot_vel'] = exp_map*fps_data
-            loaded_dict['root_rot_vel'] = torch.cat((
-                torch.zeros((1, loaded_dict['root_rot_vel'].shape[-1])).to(self.device),
-                loaded_dict['root_rot_vel'])
-                ,dim=0)
-            
-            data_length = loaded_dict['hoi_data']['root_pos'].shape[0]
-            loaded_dict['dof_pos'] = torch.cat((loaded_dict['hoi_data']['wrist_dof'], loaded_dict['hoi_data']['fingers_dof']), dim=1).clone().float().to(self.device) #changeged by me
-            loaded_dict['dof_pos_vel'] = self._compute_velocity(loaded_dict['dof_pos'], fps_data)
-            loaded_dict['body_pos'] = loaded_dict['hoi_data']['body_pos'].clone().float().to(self.device) #changeged by me
-            loaded_dict['key_body_pos'] = loaded_dict['body_pos'].clone() #changeged by me
-            loaded_dict['key_body_pos_vel'] = self._compute_velocity(loaded_dict['key_body_pos'], fps_data)
-
-            loaded_dict['obj_pos'] = loaded_dict['hoi_data']['obj_pos'].clone().float().to(self.device)
-            if loaded_dict['hoi_data']['obj_pos_vel'] is None:
-                loaded_dict['obj_pos_vel'] = self._compute_velocity(loaded_dict['obj_pos'], fps_data)
-            else:
-                loaded_dict['obj_pos_vel'] = loaded_dict['hoi_data']['obj_pos_vel']
-
-            loaded_dict['obj_rot'] = loaded_dict['hoi_data']['obj_rot'].clone().float().to(self.device)#[:, [1, 2, 3, 0]].clone()
-            self.smooth_quat_seq(loaded_dict['obj_rot'])
-
-            q_diff = torch_utils.quat_multiply(
-                torch_utils.quat_conjugate(loaded_dict['obj_rot'][:-1, :].clone()), 
-                loaded_dict['obj_rot'][1:, :].clone()
-            )
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['obj_rot_vel'] = exp_map*fps_data
-            loaded_dict['obj_rot_vel'] = torch.cat((
-                torch.zeros((1, loaded_dict['obj_rot_vel'].shape[-1])).float().to(self.device),
-                loaded_dict['obj_rot_vel'])
-                ,dim=0)
-
-            # object2
-            loaded_dict['obj2_pos'] = loaded_dict['hoi_data']['obj2_pos'].clone().float().to(self.device)
-            loaded_dict['obj2_pos_vel'] = self._compute_velocity(loaded_dict['obj_pos'], fps_data)
-
-            loaded_dict['obj2_rot'] = loaded_dict['hoi_data']['obj2_rot'].clone().float().to(self.device)#[:, [1, 2, 3, 0]].clone()
-            self.smooth_quat_seq(loaded_dict['obj2_rot'])
-
-            q_diff = torch_utils.quat_multiply(
-                torch_utils.quat_conjugate(loaded_dict['obj2_rot'][:-1, :].clone()), 
-                loaded_dict['obj2_rot'][1:, :].clone()
-            )
-            angle, axis = torch_utils.quat_to_angle_axis(q_diff)
-            exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
-            loaded_dict['obj2_rot_vel'] = exp_map*fps_data
-            loaded_dict['obj2_rot_vel'] = torch.cat((
-                torch.zeros((1, loaded_dict['obj2_rot_vel'].shape[-1])).to(self.device),
-                loaded_dict['obj2_rot_vel'])
-                ,dim=0)
-
-            loaded_dict['contact1'] = torch.round(loaded_dict['hoi_data']['contact1'].clone().float().to(self.device))
-            loaded_dict['contact2'] = torch.round(loaded_dict['hoi_data']['contact2'].clone().float().to(self.device))
-        else:
-            error_message = f"hoi_data is of an unknown type: {type(hoi_data)}"
-            raise TypeError(pformat(error_message))
-        ############################################################
-        if self.duplicate_last_frame:
-            for key in [
-                    'root_pos', 'root_rot', 'dof_pos', 'body_pos', 'key_body_pos', 
-                    'obj_pos', 'obj_rot', 'obj2_pos', 'obj2_rot', 
-                    'contact1', 'contact2', 'root_pos_vel', 'root_rot_vel', 
-                    'dof_pos_vel', 'key_body_pos_vel', 'obj_pos_vel', 
-                    'obj_rot_vel', 'obj2_pos_vel', 'obj2_rot_vel'
-                ]:
-                
-                if key in loaded_dict and loaded_dict[key].ndimension() > 0:
-                    last_element = loaded_dict[key][-1].unsqueeze(0)  # Get the last element
-                    repeated_elements = last_element.repeat(50, 1)  # Repeat it 50 times
-                    loaded_dict[key] = torch.cat((loaded_dict[key], repeated_elements), dim=0)
-        ##########################################################
-        if isinstance(hoi_data, torch.Tensor):
-            # 确保所有张量都在正确的设备上
-            loaded_dict['hoi_data'] = torch.cat((
-                loaded_dict['root_pos'].to(self.device),
-                loaded_dict['root_rot'].to(self.device),
-                loaded_dict['dof_pos'].to(self.device), 
-                loaded_dict['dof_pos_vel'].to(self.device),
-                loaded_dict['obj_pos'].to(self.device),
-                loaded_dict['obj_rot'].to(self.device),
-                loaded_dict['obj_pos_vel'].to(self.device),
-                loaded_dict['key_body_pos'].to(self.device),
-                loaded_dict['contact1'].to(self.device),
-                loaded_dict['contact2'].to(self.device)
-            ), dim=-1)
-        elif isinstance(hoi_data, dict):
-            ##################### changed by runyi #####################
-            # no wrist
-            if len(self._key_body_ids) == 15:
-                key_body_pos = loaded_dict['key_body_pos'][:, :-3].to(self.device)
-            # with wrist
-            else:
-                key_body_pos = loaded_dict['key_body_pos'].to(self.device)
-            ############################################################
-            
-            # 确保所有张量都在正确的设备上
-            loaded_dict['hoi_data'] = torch.cat((
-                loaded_dict['root_pos'].to(self.device),
-                loaded_dict['root_rot'].to(self.device),
-                loaded_dict['dof_pos'].to(self.device), 
-                loaded_dict['dof_pos_vel'].to(self.device),
-                loaded_dict['obj_pos'].to(self.device),
-                loaded_dict['obj_rot'].to(self.device),
-                loaded_dict['obj_pos_vel'].to(self.device),
-                key_body_pos,
-                loaded_dict['contact1'].to(self.device),
-                loaded_dict['contact2'].to(self.device)
-            ), dim=-1)
+        q_diff = torch_utils.quat_multiply(
+            torch_utils.quat_conjugate(loaded_dict['obj_rot'][:-1, :].clone()), 
+            loaded_dict['obj_rot'][1:, :].clone()
+        )
+        angle, axis = torch_utils.quat_to_angle_axis(q_diff)
+        exp_map = torch_utils.angle_axis_to_exp_map(angle, axis)
+        loaded_dict['obj_rot_vel'] = exp_map*fps_data
+        loaded_dict['obj_rot_vel'] = torch.cat((torch.zeros((1, loaded_dict['obj_rot_vel'].shape[-1])).float().to(self.device), loaded_dict['obj_rot_vel']),dim=0)
+        
+        loaded_dict['contact1'] = torch.round(loaded_dict['hoi_data']['contact1'].clone().float().to(self.device))
+        
+        loaded_dict['hoi_data'] = torch.cat((
+            loaded_dict['root_pos'],
+            loaded_dict['root_rot'],
+            loaded_dict['dof_pos'], 
+            loaded_dict['dof_pos_vel'],
+            loaded_dict['obj_pos'],
+            loaded_dict['obj_rot'],
+            loaded_dict['obj_pos_vel'],
+            loaded_dict['key_body_pos'],
+            loaded_dict['contact1'].to(self.device),
+            torch.zeros_like(loaded_dict['contact1']),
+        ), dim=-1)
 
         return loaded_dict
 
     def _compute_velocity(self, positions, fps):
         velocity = (positions[1:, :].clone() - positions[:-1, :].clone()) * fps
-    
         velocity = torch.cat((torch.zeros((1, positions.shape[-1])).to(self.device), velocity), dim=0)
         return velocity
 
     def smooth_quat_seq(self, quat_seq):
         n = quat_seq.size(0)
-
         for i in range(1, n):
             dot_product = torch.dot(quat_seq[i-1], quat_seq[i])
             if dot_product < 0:
                 quat_seq[i] *=-1
-
         return quat_seq
 
     def _compute_motion_weights(self, motion_class):
@@ -548,30 +362,23 @@ class MotionDataHandler:
         obj_pos_vel_list = []
         obj_rot_list = []
         obj_rot_vel_list = []
-        obj2_pos_list = []
-        obj2_pos_vel_list = []
-        obj2_rot_list = []
-        obj2_rot_vel_list = []
 
         for i, env_id in enumerate(env_ids):
             motion_id = motion_ids[i].item()
-
-            if self.play_dataset or self.postproc_unihotdata:
+            if self.play_dataset:
                 start_frame = 0 
             else:
                 start_frame = start_frames[i].item() 
             
-
-            self.envid2motid[env_id] = motion_id #V1
+            self.envid2motid[env_id] = motion_id
             self.envid2sframe[env_id] = start_frame 
             episode_length = self.envid2episode_lengths[env_id].item()
 
-            state = self._get_general_case_initial_state(motion_id, start_frame, episode_length)
+            state = self._get_initial_state(motion_id, start_frame, episode_length)
             for key, value in state.items():
                 if isinstance(value, torch.Tensor):
                     state[key] = value.to(self.device)
 
-            # reward_weights_list.append(state['reward_weights'])
             for k in self.reward_weights_default:
                 self.reward_weights[k][env_id] =  torch.as_tensor(state['reward_weights'][k], device=self.device).float()
             assert env_id.max() < self.reward_weights[k].shape[0], \
@@ -587,10 +394,6 @@ class MotionDataHandler:
             obj_pos_vel_list.append(state["init_obj_pos_vel"])
             obj_rot_list.append(state["init_obj_rot"])
             obj_rot_vel_list.append(state["init_obj_rot_vel"])
-            obj2_pos_list.append(state["init_obj2_pos"])
-            obj2_pos_vel_list.append(state["init_obj2_pos_vel"])
-            obj2_rot_list.append(state["init_obj2_rot"])
-            obj2_rot_vel_list.append(state["init_obj2_rot_vel"])
 
         hoi_data = torch.stack(hoi_data_list, dim=0)
         root_pos = torch.stack(root_pos_list, dim=0)
@@ -603,25 +406,19 @@ class MotionDataHandler:
         obj_pos_vel = torch.stack(obj_pos_vel_list, dim =0)
         obj_rot = torch.stack(obj_rot_list, dim =0)
         obj_rot_vel = torch.stack(obj_rot_vel_list, dim =0)
-        obj2_pos = torch.stack(obj2_pos_list, dim =0)
-        obj2_pos_vel = torch.stack(obj2_pos_vel_list, dim =0)
-        obj2_rot = torch.stack(obj2_rot_list, dim =0)
-        obj2_rot_vel = torch.stack(obj2_rot_vel_list, dim =0)
 
         return hoi_data, \
                 root_pos, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, \
-                obj_pos, obj_pos_vel, obj_rot, obj_rot_vel, \
-                obj2_pos, obj2_pos_vel, obj2_rot, obj2_rot_vel
+                obj_pos, obj_pos_vel, obj_rot, obj_rot_vel
                 
 
-    def _get_general_case_initial_state(self, motion_id, start_frame, episode_length):
+    def _get_initial_state(self, motion_id, start_frame, episode_length):
         hoi_data = F.pad(
             self.hoi_data_dict[motion_id]['hoi_data'][start_frame:start_frame + episode_length],
             (0, 0, 0, self.max_episode_length - episode_length)
         )
-
         return {
-            "reward_weights": self._get_general_case_reward_weights(),
+            "reward_weights": self._get_reward_weights(),
             "hoi_data": hoi_data,
             "init_root_pos": self.hoi_data_dict[motion_id]['root_pos'][start_frame, :],
             "init_root_rot": self.hoi_data_dict[motion_id]['root_rot'][start_frame, :],
@@ -633,40 +430,24 @@ class MotionDataHandler:
             "init_obj_pos_vel": self.hoi_data_dict[motion_id]['obj_pos_vel'][start_frame, :],
             "init_obj_rot": self.hoi_data_dict[motion_id]['obj_rot'][start_frame, :],
             "init_obj_rot_vel": self.hoi_data_dict[motion_id]['obj_rot_vel'][start_frame, :],
-            "init_obj2_pos": self.hoi_data_dict[motion_id]['obj2_pos'][start_frame, :],
-            "init_obj2_pos_vel": self.hoi_data_dict[motion_id]['obj2_pos_vel'][start_frame, :],
-            "init_obj2_rot": self.hoi_data_dict[motion_id]['obj2_rot'][start_frame, :],
-            "init_obj2_rot_vel": self.hoi_data_dict[motion_id]['obj2_rot_vel'][start_frame, :]
         }
 
-    def _get_special_case_reward_weights(self):
+    def _get_reward_weights(self):
         reward_weights = self.reward_weights_default
         return {
             "p": reward_weights["p"],
             "r": reward_weights["r"],
-            "op": reward_weights["op"] * 0.,
-            "ig": reward_weights["ig"] * 0.,
-            "cg1": reward_weights["cg1"] * 0.,
-            "cg2": reward_weights["cg2"] * 0.,
             "pv": reward_weights["pv"],
             "rv": reward_weights["rv"],
+            "wp": reward_weights["wp"],
+            "wr": reward_weights["wr"],
+            "wpv": reward_weights["wpv"],
+            "wrv": reward_weights["wrv"],
+            "op": reward_weights["op"],
             "or": reward_weights["or"],
             "opv": reward_weights["opv"],
             "orv": reward_weights["orv"],
-        }
-
-    def _get_general_case_reward_weights(self):
-        reward_weights = self.reward_weights_default
-        return {
-            "p": reward_weights["p"],
-            "r": reward_weights["r"],
-            "op": reward_weights["op"],
             "ig": reward_weights["ig"],
             "cg1": reward_weights["cg1"],
             "cg2": reward_weights["cg2"],
-            "pv": reward_weights["pv"],
-            "rv": reward_weights["rv"],
-            "or": reward_weights["or"],
-            "opv": reward_weights["opv"],
-            "orv": reward_weights["orv"],
         }

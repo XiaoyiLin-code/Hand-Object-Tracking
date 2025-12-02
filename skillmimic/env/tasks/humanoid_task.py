@@ -14,31 +14,21 @@ from utils import torch_utils
 from env.tasks.base_task import BaseTask
 
 
-PERTURB_OBJS = [
-    ["small", 60],
-    # ["large", 60],
-]
-
 class HumanoidWholeBody(BaseTask):
     def __init__(self, cfg, sim_params, physics_engine, device_type, device_id, headless):
-        self._enable_task_obs = cfg["env"]["enableTaskObs"]
-
         self.cfg = cfg
         self.sim_params = sim_params
         self.physics_engine = physics_engine
 
         self._pd_control = self.cfg["env"]["pdControl"]
         self.power_scale = self.cfg["env"]["powerScale"]
-        self.projtype = cfg['env']['projtype']
-
         self.debug_viz = self.cfg["env"]["enableDebugVis"]
+
         self.plane_static_friction = self.cfg["env"]["plane"]["staticFriction"]
         self.plane_dynamic_friction = self.cfg["env"]["plane"]["dynamicFriction"]
         self.plane_restitution = self.cfg["env"]["plane"]["restitution"]
 
         self.max_episode_length = self.cfg["env"]["episodeLength"] #V1
-        self._local_root_obs = self.cfg["env"]["localRootObs"]
-        self._root_height_obs = self.cfg["env"].get("rootHeightObs", True)
         self._enable_early_termination = self.cfg["env"]["enableEarlyTermination"] #warning by me not setting termination condition
         
         key_bodies = self.cfg["env"]["keyBodies"]
@@ -60,13 +50,7 @@ class HumanoidWholeBody(BaseTask):
         actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
-        # sensor_tensor = self.gym.acquire_force_sensor_tensor(self.sim) #V1
-        # dof_force_tensor = self.gym.acquire_dof_force_tensor(self.sim) # Although the performance impact is usually quite small, it is best to only enable the sensors when needed.
         contact_force_tensor = self.gym.acquire_net_contact_force_tensor(self.sim)
-        
-        # sensors_per_env = 2
-        # self.vec_sensor_tensor = gymtorch.wrap_tensor(sensor_tensor).view(self.num_envs, sensors_per_env * 6)
-        # self.dof_force_tensor = gymtorch.wrap_tensor(dof_force_tensor).view(self.num_envs, self.num_dof)
         
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
@@ -92,7 +76,6 @@ class HumanoidWholeBody(BaseTask):
         self.init_dof_pos = torch.zeros_like(self._dof_pos, device=self.device, dtype=torch.float)
         self.init_dof_pos_vel = torch.zeros_like(self._dof_vel, device=self.device, dtype=torch.float)
         
-        #########################changed by me
         self.num_rigid_bodies = self.gym.get_actor_rigid_body_count(self.envs[0], self.humanoid_handles[0])  #warning as isaacgym may not be able to read xml properly it treat all link as rigid bodies even xyz =63 for urdf =52 xml for xml
         self._rigid_body_state = gymtorch.wrap_tensor(rigid_body_state)
         bodies_per_env = self._rigid_body_state.shape[0] // self.num_envs
@@ -101,15 +84,11 @@ class HumanoidWholeBody(BaseTask):
         self._rigid_body_rot = rigid_body_state_reshaped[..., :self.num_rigid_bodies, 3:7]
         self._rigid_body_vel = rigid_body_state_reshaped[..., :self.num_rigid_bodies, 7:10]
         self._rigid_body_ang_vel = rigid_body_state_reshaped[..., :self.num_rigid_bodies, 10:13]
-        ##############################################################
 
         contact_force_tensor = gymtorch.wrap_tensor(contact_force_tensor)
         self._contact_forces = contact_force_tensor.view(self.num_envs, bodies_per_env, 3)[..., :self.num_rigid_bodies, :] #changed by me warning useless
                 
-        self._build_termination_heights()
-        
         self._key_body_ids = self._build_key_body_ids_tensor(key_bodies)
-        self._key_body_wrist_ids = self._build_key_body_ids_tensor(self.cfg["env"]["keyBodiesWrist"])
         self._contact_body_ids = self._build_contact_body_ids_tensor(self.cfg["env"]["contactBodies"])
         
         if self.viewer != None:
@@ -119,61 +98,34 @@ class HumanoidWholeBody(BaseTask):
         return
 
     def _setup_character_props(self, key_bodies):
-        asset_file = self.cfg["env"]["asset"]["assetFileName"]
         num_key_bodies = len(key_bodies)
-        asset_file = "mjcf/rhand_mano_low_mass.xml"
-        self._dof_obs_size = 17*3 #changed by me 17 as included wris_r
-        obj_obs_size = 15
-        
         if self.hand_model == "mano":
             self._num_obs = 1 + (num_key_bodies + 1) * (3 + 6 + 3 + 3) - 3 +  (num_key_bodies - 15) * 3 + (48 + 3) + 7 #48+3 keybody residual + obj residual
-            self._num_actions = 17*3  #changed by me
+            self._num_actions = 17*3
         elif self.hand_model == "shadow":
             self._num_obs = 1 + (num_key_bodies + 1) * (3 + 6 + 3 + 3) - 3 + \
-                len(self.cfg["env"]["contactBodies"])*3 + (num_key_bodies*3 + 3)  + 7 - 15  #warningggg #same shape as obs from _compute_humanoid_obs() #changed by me + 5 *3 is contact force
+                len(self.cfg["env"]["contactBodies"])*3 + (num_key_bodies*3 + 3)  + 7 - 15 #warningggg #same shape as obs from _compute_humanoid_obs() #changed by me + 5 *3 is contact force
             self._num_actions = 28
         elif self.hand_model == "allegro":
-            self._num_obs = 1 + (num_key_bodies + 1) * (3 + 6 + 3 + 3) - 3 + 17*3 + (num_key_bodies*3 + 3)  + 7 - 15  #warningggg #same shape as obs from _compute_humanoid_obs() #changed by me + 5 *3 is contact force
+            self._num_obs = 1 + (num_key_bodies + 1) * (3 + 6 + 3 + 3) - 3 + 17*3 + (num_key_bodies*3 + 3)  + 7 - 15 #warningggg #same shape as obs from _compute_humanoid_obs() #changed by me + 5 *3 is contact force
             self._num_actions = 22
-        
-        if self._enable_text_obs:
-            self._num_obs += 52
+
         if self._enable_future_target_obs:
-            if "futureVectorDim" in self.cfg['env']:
-                self._num_obs += self.future_vecotr_dim
-            else:
-                self._num_obs += (num_key_bodies + 1) * 5 * 3 + 240 + 5
+            self._num_obs += (num_key_bodies + 1) * 5 * 3 + 240 + 5
         if self._enable_dense_obj:
             self._num_obs += 180 * 3
-        if self._enable_nearest_vector:
-            self._num_obs += (num_key_bodies + 1) * 3
         if self._enable_obj_keypoints:
             self._num_obs += self._num_target_keypoints*3
         if self._enable_dof_obs:
-            if self.hand_model == "mano":
-                num_dof = 51
-            elif self.hand_model == "shadow":
-                num_dof = 28
-            elif self.hand_model == "allegro":
-                num_dof = 22
-            self._num_obs += num_dof * 2 + 1
-        if "Insert" in self.cfg['name']:
-            self._num_obs += obj_obs_size
-        if self._enable_wrist_local_obs:
-            self._num_obs -= 15
+            self._num_obs += self._num_actions * 2 + 1
         if "DexGenBallPlay" in self.cfg['name']:
             self._num_obs = 387
         return
     
     
     def get_obs_size(self):
-        obs_size = 0
         humanoid_obs_size = self._num_obs
-        obs_size += humanoid_obs_size
-        if self._enable_task_obs:
-            task_obs_size = self.get_task_obs_size()
-            obs_size += task_obs_size
-        return obs_size
+        return humanoid_obs_size
 
     def get_action_size(self):
         return self._num_actions
@@ -181,9 +133,6 @@ class HumanoidWholeBody(BaseTask):
     def get_num_actors_per_env(self):
         num_actors = self._root_states.shape[0] // self.num_envs
         return num_actors
-    
-    def get_task_obs_size(self):
-        return 0
 
     def create_sim(self):
         self.up_axis_idx = self.set_sim_params_up_axis(self.sim_params, 'z')
@@ -218,7 +167,6 @@ class HumanoidWholeBody(BaseTask):
         asset_options.max_angular_velocity = 100.0
         asset_options.default_dof_drive_mode = gymapi.DOF_MODE_POS
         asset_options.fix_base_link = True
-        # asset_options.disable_gravity = True
         humanoid_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
 
         self.num_humanoid_bodies = self.gym.get_asset_rigid_body_count(humanoid_asset)
@@ -227,25 +175,14 @@ class HumanoidWholeBody(BaseTask):
         actuator_props = self.gym.get_asset_actuator_properties(humanoid_asset)
         motor_efforts = [prop.motor_effort for prop in actuator_props]
         
-        # create force sensors at the feet
-        #right_foot_idx = self.gym.find_asset_rigid_body_index(humanoid_asset, "right_foot")
-        #left_foot_idx = self.gym.find_asset_rigid_body_index(humanoid_asset, "left_foot")
-        sensor_pose = gymapi.Transform()
-
-        #self.gym.create_asset_force_sensor(humanoid_asset, right_foot_idx, sensor_pose)
-        #self.gym.create_asset_force_sensor(humanoid_asset, left_foot_idx, sensor_pose)
-
         self.max_motor_effort = max(motor_efforts) #changed by me warning gym cannot support actuator in urdf https://forums.developer.nvidia.com/t/dofs-vs-actuators/177537 #aaaaaaaaaaaaaaaaa
         self.motor_efforts = to_torch(motor_efforts, device=self.device)
 
         self.torso_index = 0
-        ################################################################################# changed by me
-        # self.num_bodies = len(self.cfg["env"]["keyBodies"]) + 1 # as root is not included in key body
         self.num_bodies = self.gym.get_asset_rigid_body_count(humanoid_asset)
         self.num_dof = self.gym.get_asset_dof_count(humanoid_asset)
         self.num_joints = self.num_dof
 
-        ######################################################
         self.humanoid_handles = []
         self.envs = []
         self.dof_limits_lower = []
@@ -265,7 +202,6 @@ class HumanoidWholeBody(BaseTask):
             self.envs.append(env_ptr)
 
         dof_prop = self.gym.get_actor_dof_properties(self.envs[0], self.humanoid_handles[0])
-        #print("yyyyyyyyyyyy",self.num_dof)
         for j in range(self.num_dof):
             if dof_prop['lower'][j] > dof_prop['upper'][j]:
                 self.dof_limits_lower.append(dof_prop['upper'][j])
@@ -280,12 +216,6 @@ class HumanoidWholeBody(BaseTask):
         if (self._pd_control):
             self._build_pd_action_offset_scale()
 
-        # dof_prop = self.gym.get_asset_dof_properties(humanoid_asset)
-        # print(dof_prop["driveMode"])
-        # print(gymapi.DOF_MODE_POS)
-        # print(dof_prop["stiffness"])
-        # import sys
-        # sys.exit()
         return
     
     def _build_env(self, env_id, env_ptr, humanoid_asset):
@@ -294,16 +224,12 @@ class HumanoidWholeBody(BaseTask):
         segmentation_id = 0
 
         start_pose = gymapi.Transform()
-        asset_file = self.cfg["env"]["asset"]["assetFileName"]
-        char_h = 0.89
-
-        start_pose.p = gymapi.Vec3(*get_axis_params(char_h, self.up_axis_idx))
+        start_pose.p = gymapi.Vec3(*get_axis_params(0.5, self.up_axis_idx))
         start_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
 
         humanoid_handle = self.gym.create_actor(env_ptr, humanoid_asset, start_pose, "humanoid", col_group, col_filter, segmentation_id)
 
         self.gym.enable_actor_dof_force_sensors(env_ptr, humanoid_handle)
-
         for j in range(self.num_bodies):
             self.gym.set_rigid_body_color(env_ptr, humanoid_handle, j, gymapi.MESH_VISUAL, gymapi.Vec3(0.54, 0.85, 0.2))
 
@@ -312,75 +238,10 @@ class HumanoidWholeBody(BaseTask):
             dof_prop["driveMode"] = gymapi.DOF_MODE_POS
             self.gym.set_actor_dof_properties(env_ptr, humanoid_handle, dof_prop)
         self.humanoid_handles.append(humanoid_handle)
+
         return
-
-
-    ###########################by me
-    def _create_table(self, env_id, env_ptr):
-        table_size = gymapi.Vec3(2.0, 1.0, 0.5)
-        table_asset_options = gymapi.AssetOptions()
-        table_asset_options.fix_base_link = True 
-        table_asset = self.gym.create_box(self.sim, table_size.x, table_size.y, table_size.z, table_asset_options)
-        table_pose = gymapi.Transform()
-        table_pose.p = gymapi.Vec3(1.25, 0, 0.25)
-        table_pose.r = gymapi.Quat(1, 0, 0, 0)
-        table_handle = self.gym.create_actor(env_ptr, table_asset, table_pose, "table", 0, 1, 0)
-        self.gym.set_rigid_body_color(env_ptr, table_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.9, 0.9, 0.9))
-        table_props = self.gym.get_actor_rigid_body_properties(env_ptr, table_handle)
-        table_props[0].mass = 100.0
-        self.gym.set_actor_rigid_body_properties(env_ptr, table_handle,table_props)
-
-        '''
-        # Table creation code
-        col_group = env_id 
-        col_filter = 0
-        segmentation_id = 0
-
-        table_pose = gymapi.Transform()
-        table_pose.p = gymapi.Vec3(1.0, 0.0, 0.5)  # Adjust position as needed
-        table_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
-
-        # Create table top
-        table_top_size = gymapi.Vec3(1.5, 1.0, 0.05)
-        table_top_asset = self.gym.create_box(self.sim, table_top_size.x, table_top_size.y, table_top_size.z, gymapi.AssetOptions())
-        table_top_handle = self.gym.create_actor(env_ptr, table_top_asset, table_pose, "table_top", col_group, col_filter, segmentation_id)
-
-        # Create table legs
-        leg_size = gymapi.Vec3(0.05, 0.05, 0.5)
-        leg_asset = self.gym.create_box(self.sim, leg_size.x, leg_size.y, leg_size.z, gymapi.AssetOptions())
-
-        leg_positions = [
-            (-0.7, -0.45, -0.25), (0.7, -0.45, -0.25),
-            (-0.7, 0.45, -0.25), (0.7, 0.45, -0.25)
-        ]
-        leg_handlers = []
-        for i, pos in enumerate(leg_positions):
-            leg_pose = gymapi.Transform()
-            leg_pose.p = gymapi.Vec3(*pos) + table_pose.p
-            leg_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
-            leg_handle = self.gym.create_actor(env_ptr, leg_asset, leg_pose, f"table_leg_{i}", col_group, col_filter, segmentation_id)
-            leg_handlers.append(leg_handle)
-        # Set table color
-        self.gym.set_rigid_body_color(env_ptr, table_top_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.8, 0.6, 0.4))
-
-        # Make table static
-        table_props = self.gym.get_actor_rigid_body_properties(env_ptr, table_top_handle)
-        for prop in table_props:
-            prop.mass = 0  # Set mass to 0 to make it static
-        self.gym.set_actor_rigid_body_properties(env_ptr, table_top_handle, table_props)
-
-        for i in range(4):
-            leg_handle = self.gym.get_actor_handle(env_ptr, leg_handlers[0])
-            leg_props = self.gym.get_actor_rigid_body_properties(env_ptr, leg_handle)
-            for prop in leg_props:
-                prop.mass = 0  # Set mass to 0 to make it static
-            self.gym.set_actor_rigid_body_properties(env_ptr, leg_handle, leg_props)
-        '''
-        return
-    #################################
 
     def _build_pd_action_offset_scale(self):
-        
         lim_low = self.dof_limits_lower.cpu().numpy()
         lim_high = self.dof_limits_upper.cpu().numpy()
 
@@ -388,18 +249,10 @@ class HumanoidWholeBody(BaseTask):
         self._pd_action_scale = 0.5 * (lim_high - lim_low)
         self._pd_action_offset = to_torch(self._pd_action_offset, device=self.device)
         self._pd_action_scale = to_torch(self._pd_action_scale, device=self.device)
-
         return
 
     def _get_humanoid_collision_filter(self):
         return 1
-
-    def _build_termination_heights(self):
-        self._termination_heights = 0.3
-        self._termination_heights = to_torch(self._termination_heights, device=self.device)
-        return
-    
-
 
     def reset(self, env_ids=None):
         if (env_ids is None):
@@ -432,8 +285,6 @@ class HumanoidWholeBody(BaseTask):
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        # self.gym.refresh_force_sensor_tensor(self.sim)
-        # self.gym.refresh_dof_force_tensor(self.sim) 
         self.gym.refresh_net_contact_force_tensor(self.sim)
 
         return
@@ -443,10 +294,6 @@ class HumanoidWholeBody(BaseTask):
         return
     
     def _reset_humanoid(self, env_ids):
-        # self._humanoid_root_states[env_ids] = self._initial_humanoid_root_states[env_ids] 
-        
-        # self._dof_pos[env_ids,6:] = self.init_dof_pos[env_ids,6:] #changed by me  #ohohohohoohohohohooh #chnaged by me ignore change of wrist_x, wrist_y, wrist_z
-        # self._dof_vel[env_ids,6:] = self.init_dof_pos_vel[env_ids,6:] #changed by me  #ohohohohoohohohohooh #chnaged by me ignore change of wrist_x, wrist_y, wrist_z
         self._humanoid_root_states[env_ids] = self._initial_humanoid_root_states[env_ids] 
         self._dof_pos[env_ids] = self.init_dof_pos[env_ids] 
         self._dof_vel[env_ids] = self.init_dof_pos_vel[env_ids]
@@ -456,7 +303,7 @@ class HumanoidWholeBody(BaseTask):
         """获取当前 PD 控制器的目标位置"""
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         dof_state = gymtorch.wrap_tensor(dof_state_tensor)
-        pd_targets = dof_state.view(-1, 2)[:, 0]  # 提取位置
+        pd_targets = dof_state.view(-1, 2)[:, 0]
         return pd_targets.reshape(self.num_envs, -1)
 
     def pre_physics_step(self, actions):
@@ -473,7 +320,7 @@ class HumanoidWholeBody(BaseTask):
             pd_tar_tensor = gymtorch.unwrap_tensor(pd_tar)
             self.gym.set_dof_position_target_tensor(self.sim, pd_tar_tensor)
         elif (self._pd_control) and (self._use_res_action):
-            ref_pd_tar = self._curr_ref_obs[:,7:7+17*3]
+            ref_pd_tar = self._curr_ref_obs[:,7:7+self.num_actions]
             res_pd_tar = self._action_to_respd_targets(self.actions) # res action
             pd_tar = ref_pd_tar + res_pd_tar
             pd_tar_tensor = gymtorch.unwrap_tensor(pd_tar)
@@ -505,7 +352,7 @@ class HumanoidWholeBody(BaseTask):
         self._compute_reset()
 
         self.extras["terminate"] = self._terminate_buf 
-        # debug viz
+        
         if self.viewer and self.debug_viz:
             self._update_debug_viz()
 
@@ -521,36 +368,25 @@ class HumanoidWholeBody(BaseTask):
     
     def _compute_metrics(self):
         self.extras["metrics"]= {}
-        self.extras["metrics"]['E_op'], self.extras["metrics"]['E_or'], self.extras["metrics"]['E_h'], self.extras["metrics"]['error_done'] \
-            = compute_metrics(self.obs_buf) #V1
+        self.extras["metrics"]['E_op'], self.extras["metrics"]['E_or'], self.extras["metrics"]['E_h'], self.extras["metrics"]['error_done'] = compute_metrics(self.obs_buf)
 
     def _compute_reset(self):
-        self.reset_buf[:], self._terminate_buf[:] = compute_humanoid_reset(self.reset_buf, self.progress_buf,
-                                                   self._rigid_body_pos, self.max_episode_length,
-                                                   self._enable_early_termination, self._termination_heights
-                                                   )
         return
 
 
-    def _compute_observations(self, env_ids=None): # called @ reset & post step
+    def _compute_observations(self, env_ids=None):
         obs = None
         humanoid_obs = self._compute_humanoid_obs(env_ids)
         obs = humanoid_obs
 
-        if self._enable_task_obs:
-            task_obs = self.compute_task_obs(env_ids)
-            obs = torch.cat([obs, task_obs], dim = -1)
-
         if (env_ids is None): 
             self.obs_buf[:] = obs
-
         else:
             self.obs_buf[env_ids] = obs
 
         return
 
     def _compute_humanoid_obs(self, env_ids=None):
-        ##########################################changed by me
         body_id = torch.tensor([0] +self._key_body_ids.tolist() )  # Shape: (3,)
         if (env_ids is None):
             body_pos = self._rigid_body_pos[:, body_id, :].clone()
@@ -565,50 +401,7 @@ class HumanoidWholeBody(BaseTask):
             body_ang_vel = self._rigid_body_ang_vel[env_ids][:, body_id, :].clone()
             contact_forces = self._contact_forces[env_ids]
         
-        obs = compute_humanoid_observations(body_pos, body_rot, body_vel, body_ang_vel, 
-                                                self._local_root_obs, self._root_height_obs,
-                                                contact_forces, self._contact_body_ids)
-        '''
-        print("Shapes of body attributes after indexing with env_ids:")
-        print("body_pos shape:", body_pos.shape)
-        print("body_rot shape:", body_rot.shape)
-        print("body_vel shape:", body_vel.shape)
-        print("body_ang_vel shape:", body_ang_vel.shape)
-        print("contact_forces shape:", contact_forces.shape)
-        print("Shapes of body and observation attributes:")
-        print("body_pos shape:", body_pos.shape)
-        print("body_rot shape:", body_rot.shape)
-        print("body_vel shape:", body_vel.shape)
-        print("body_ang_vel shape:", body_ang_vel.shape)
-        print("local_root_obs shape:", self._local_root_obs)
-        print("root_height_obs shape:", self._root_height_obs)
-        print("contact_forces shape:", contact_forces.shape)
-        print("contact_body_ids shape:", self._contact_body_ids.shape)
-        '''
-        #######################################################################
-        return obs
-
-    def _compute_humanoid_local_obs(self, env_ids=None):
-        body_id = torch.tensor([0] +self._key_body_ids.tolist() )  # Shape: (3,)
-        if (env_ids is None):
-            body_pos = self._rigid_body_pos[:, body_id, :].clone()
-            body_rot = self._rigid_body_rot[:, body_id, :].clone()
-            body_vel = self._rigid_body_vel[:, body_id, :].clone()
-            body_ang_vel = self._rigid_body_ang_vel[:, body_id, :].clone()
-            contact_forces = self._contact_forces.clone()
-        else:
-            body_pos = self._rigid_body_pos[env_ids][:, body_id, :].clone()
-            body_rot = self._rigid_body_rot[env_ids][:, body_id, :].clone()
-            body_vel = self._rigid_body_vel[env_ids][:, body_id, :].clone()
-            body_ang_vel = self._rigid_body_ang_vel[env_ids][:, body_id, :].clone()
-            contact_forces = self._contact_forces[env_ids]
-        
-        obs = compute_humanoid_local_observations(body_pos, body_rot, body_vel, body_ang_vel, 
-                                                self._local_root_obs, self._root_height_obs,
-                                                contact_forces, self._contact_body_ids)
-        # if self._enable_dof_obs:
-        #     dof_pos = self.get_current_pd_targets()
-        #     obs = torch.cat([obs, dof_pos], dim = -1)
+        obs = compute_humanoid_observations(body_pos, body_rot, body_vel, body_ang_vel, contact_forces, self._contact_body_ids)
         return obs
 
 
@@ -658,12 +451,6 @@ class HumanoidWholeBody(BaseTask):
         cam_target = gymapi.Vec3(self._cam_prev_char_pos[0],
                                  self._cam_prev_char_pos[1],
                                  1.0)
-        # cam_pos = gymapi.Vec3(0, 
-        #                       - 3.0, 
-        #                       4.0)
-        # cam_target = gymapi.Vec3(0,
-        #                          0,
-        #                          1.3)
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
         return
 
@@ -681,13 +468,7 @@ class HumanoidWholeBody(BaseTask):
                                   cam_pos[2])
 
         self.gym.viewer_camera_look_at(self.viewer, None, new_cam_pos, new_cam_target)
-
         self._cam_prev_char_pos[:] = char_root_pos
-
-        # # # fixed camera
-        # new_cam_target = gymapi.Vec3(0, 0.5, 1.0)
-        # new_cam_pos = gymapi.Vec3(1, -1, 1.6)
-        # self.gym.viewer_camera_look_at(self.viewer, None, new_cam_pos, new_cam_target)
         return
     
 
@@ -726,66 +507,8 @@ def action_scale(actions):
     return scaled_action
 
 # @torch.jit.script
-def compute_humanoid_observations(body_pos, body_rot, body_vel, body_ang_vel, local_root_obs, root_height_obs, contact_forces, contact_body_ids):
-    # type: (Tensor, Tensor, Tensor, Tensor, bool, bool, Tensor, Tensor) -> Tensor
-    root_pos = body_pos[:, 0, :]
-    root_rot = body_rot[:, 0, :]
-
-    root_h = root_pos[:, 2:3]
-    heading_rot = torch_utils.calc_heading_quat_inv(root_rot)
-    
-    if (not root_height_obs):
-        root_h_obs = torch.zeros_like(root_h)
-    else:
-        root_h_obs = root_h
-    
-    heading_rot_expand = heading_rot.unsqueeze(-2)
-    heading_rot_expand = heading_rot_expand.repeat((1, body_pos.shape[1], 1))
-    flat_heading_rot = heading_rot_expand.reshape(heading_rot_expand.shape[0] * heading_rot_expand.shape[1], 
-                                               heading_rot_expand.shape[2])
-    
-    root_pos_expand = root_pos.unsqueeze(-2)
-    local_body_pos = body_pos - root_pos_expand
-    flat_local_body_pos = local_body_pos.reshape(local_body_pos.shape[0] * local_body_pos.shape[1], local_body_pos.shape[2])
-    flat_local_body_pos = quat_rotate(flat_heading_rot, flat_local_body_pos)
-    local_body_pos = flat_local_body_pos.reshape(local_body_pos.shape[0], local_body_pos.shape[1] * local_body_pos.shape[2])
-    local_body_pos = local_body_pos[..., 3:] # remove root pos
-
-    flat_body_rot = body_rot.reshape(body_rot.shape[0] * body_rot.shape[1], body_rot.shape[2])
-    flat_local_body_rot = quat_mul(flat_heading_rot, flat_body_rot)
-    flat_local_body_rot_obs = torch_utils.quat_to_tan_norm(flat_local_body_rot)
-    local_body_rot_obs = flat_local_body_rot_obs.reshape(body_rot.shape[0], body_rot.shape[1] * flat_local_body_rot_obs.shape[1])
-    
-    if (local_root_obs):
-        root_rot_obs = torch_utils.quat_to_tan_norm(root_rot)
-        local_body_rot_obs[..., 0:6] = root_rot_obs
-
-    flat_body_vel = body_vel.reshape(body_vel.shape[0] * body_vel.shape[1], body_vel.shape[2])
-    flat_local_body_vel = quat_rotate(flat_heading_rot, flat_body_vel)
-    local_body_vel = flat_local_body_vel.reshape(body_vel.shape[0], body_vel.shape[1] * body_vel.shape[2])
-    
-    flat_body_ang_vel = body_ang_vel.reshape(body_ang_vel.shape[0] * body_ang_vel.shape[1], body_ang_vel.shape[2])
-    flat_local_body_ang_vel = quat_rotate(flat_heading_rot, flat_body_ang_vel)
-    local_body_ang_vel = flat_local_body_ang_vel.reshape(body_ang_vel.shape[0], body_ang_vel.shape[1] * body_ang_vel.shape[2])
-    body_contact_buf = contact_forces[:, contact_body_ids, :].clone().view(contact_forces.shape[0],-1) # changed by me
-    # body_contact_buf = contact_forces[:, :, :].clone().view(contact_forces.shape[0],-1)# changed by me
-    '''
-    print("Shapes of observation and body attributes:")
-    print("root_h_obs shape:", root_h_obs.shape)
-    print("local_body_pos shape:", local_body_pos.shape)
-    print("local_body_rot_obs shape:", local_body_rot_obs.shape)
-    print("local_body_vel shape:", local_body_vel.shape)
-    print("local_body_ang_vel shape:", local_body_ang_vel.shape)
-    print("body_contact_buf shape:", body_contact_buf.shape)
-    '''
-    obs = torch.cat((root_h_obs, local_body_pos, local_body_rot_obs, local_body_vel, local_body_ang_vel, body_contact_buf), dim=-1)
-    return obs
-
-# @torch.jit.script
-# body_pos: [root, ..., right_wrist]
-def compute_humanoid_local_observations(body_pos, body_rot, body_vel, body_ang_vel, local_wrist_obs, wrist_height_obs, contact_forces, contact_body_ids):
-    # type: (Tensor, Tensor, Tensor, Tensor, bool, bool, Tensor, Tensor) -> Tensor
-    # exclude the root from the observation
+def compute_humanoid_observations(body_pos, body_rot, body_vel, body_ang_vel, contact_forces, contact_body_ids):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor) -> Tensor
     body_pos, body_rot, body_vel, body_ang_vel = body_pos[:, 1:], body_rot[:, 1:], body_vel[:, 1:], body_ang_vel[:, 1:]
     num_envs, num_joints, dim = body_pos.shape[0], body_pos.shape[1], body_pos.shape[2]
 
@@ -825,23 +548,3 @@ def compute_humanoid_local_observations(body_pos, body_rot, body_vel, body_ang_v
     body_contact_buf = contact_forces[:, contact_body_ids, :].clone().view(num_envs,-1) # [num_envs, 5 * 3]
     obs = torch.cat((wrist_obs, local_body_pos, local_body_rot_obs, local_body_vel, local_body_ang_vel, body_contact_buf), dim=-1)
     return obs
-
-
-@torch.jit.script
-def compute_humanoid_reset(reset_buf, progress_buf, rigid_body_pos,
-                           
-                           max_episode_length, enable_early_termination, termination_heights):
-    # type: (Tensor, Tensor, Tensor, float, bool, Tensor) -> Tuple[Tensor, Tensor]
-    terminated = torch.zeros_like(reset_buf)
-
-    if (enable_early_termination):
-        body_height = rigid_body_pos[:, 0, 2] # root height
-        body_fall = body_height < termination_heights # [4096] 
-        has_failed = body_fall.clone()
-        has_failed *= (progress_buf > 1)
-        
-        terminated = torch.where(has_failed, torch.ones_like(reset_buf), terminated)
-    
-    reset = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), terminated)
-
-    return reset, terminated

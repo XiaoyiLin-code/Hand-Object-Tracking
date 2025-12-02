@@ -7,12 +7,8 @@ env:
   enableDebugVis: False
   playdataset: False
   postproc_unihotdata: False
-  projtype: "None"
   saveImages: "" #False
-  initVel: False
   bodyObjKeypoint: False
-  showObjectKeyPoints: False
-  disturbanceForceScale: 10 # Control force magnitude
   distill: True
   
   teacherPolicy: "checkpoint/distill_debug"
@@ -25,11 +21,10 @@ env:
   hybridInitProb: 0.5
   dataFPS: 60 #ZC
   dataFramesScale: 1. # 60 fps
-  ballSize: 1.
-  ballRestitution: 0.
-  ballDensity: 1000.
+  objSize: 1.
+  objRestitution: 0.
+  objDensity: 500.
 
-  localRootObs: False
   keyBodies: [
     "right_index1_z",
     "right_index2_z",
@@ -48,26 +43,7 @@ env:
     "right_thumb3_z",
     "right_wrist"] # not include root
     
-  keyBodiesWrist: [  
-    "right_index1_z",
-    "right_index2_z",
-    "right_index3_z",
-    "right_middle1_z",
-    "right_middle2_z",
-    "right_middle3_z",
-    "right_pinky1_z",
-    "right_pinky2_z",
-    "right_pinky3_z",
-    "right_ring1_z",
-    "right_ring2_z",
-    "right_ring3_z",
-    "right_thumb1_z",
-    "right_thumb2_z",
-    "right_thumb3_z",
-    "right_wrist"] #, "L_Wrist", "R_Wrist"
-  #contactBodies: ["L_Index3", "L_Middle3", "L_Pinky3", "L_Ring3","L_Thumb3","R_Index3", "R_Middle3", "R_Pinky3", "R_Ring3","R_Thumb3"] #["right_foot", "left_foot"]
   contactBodies: ["right_index3_z", "right_middle3_z", "right_pinky3_z", "right_ring3_z","right_thumb3_z"] #["right_foot", "left_foot"]
-  terminationHeight: 0.25
   enableEarlyTermination: True #False #True
   # objectNames: ["Sword", "Box", "Shoe", "Bottle"]
   objectNames: ["Bottle"] # "Ball", "Box", "Book", "Shoe", "Sword", "Wineglass"
@@ -75,7 +51,6 @@ env:
   asset:
     assetRoot: "skillmimic/data/assets" #projectname
     assetFileName: "mjcf/rhand_mano_low_mass.xml"
-  terminationHeight: 0.25
   enableEarlyTermination: True #False #True
 
   plane:
@@ -98,8 +73,6 @@ env:
 
     cg1: 5.
     cg2: 5.
-
-  enableTaskObs: False #ZC0
 
 sim:
   substeps: 2 #ZC

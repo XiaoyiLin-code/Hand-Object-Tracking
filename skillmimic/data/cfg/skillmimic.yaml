@@ -9,7 +9,6 @@ env:
   postproc_unihotdata: False
   projtype: "None"
   saveImages: "" #False
-  initVel: False
   
   pdControl: True
   powerScale: 1.0
@@ -18,11 +17,10 @@ env:
   hybridInitProb: 0.5
   dataFPS: 60 #ZC
   dataFramesScale: 1. # 60 fps
-  ballSize: 1.
-  ballRestitution: 0.
-  ballDensity: 1000.
+  objSize: 1.
+  objRestitution: 0.
+  objDensity: 500.
 
-  localRootObs: False
   keyBodies: [   
     "right_index1_z",
     "right_index2_z",
@@ -40,38 +38,19 @@ env:
     "right_thumb2_z",
     "right_thumb3_z"] # not include root
     
-  keyBodiesWrist: [    
-    "right_index1_z",
-    "right_index2_z",
-    "right_index3_z",
-    "right_middle1_z",
-    "right_middle2_z",
-    "right_middle3_z",
-    "right_pinky1_z",
-    "right_pinky2_z",
-    "right_pinky3_z",
-    "right_ring1_z",
-    "right_ring2_z",
-    "right_ring3_z",
-    "right_thumb1_z",
-    "right_thumb2_z",
-    "right_thumb3_z"] #, "L_Wrist", "R_Wrist"
-  #contactBodies: ["L_Index3", "L_Middle3", "L_Pinky3", "L_Ring3","L_Thumb3","R_Index3", "R_Middle3", "R_Pinky3", "R_Ring3","R_Thumb3"] #["right_foot", "left_foot"]
   contactBodies: ["right_index3_z", "right_middle3_z", "right_pinky3_z", "right_ring3_z","right_thumb3_z"] #["right_foot", "left_foot"]
-  terminationHeight: 0.25
-  enableEarlyTermination: True #False #True
+  enableEarlyTermination: True
 
   asset:
     assetRoot: "skillmimic/data/assets" #projectname
     assetFileName: "mjcf/rhand_mano_low_mass.xml" #"mjcf/mocap_humanoid.xml"
-  terminationHeight: 0.25
-  enableEarlyTermination: True #False #True
+  enableEarlyTermination: True
   objectNames: ["Sword"]
 
   plane:
     staticFriction: 1.0
     dynamicFriction: 1.0
-    restitution: 0.8 #1.6 #0.99 #0. #1.6
+    restitution: 0.8
   
   rewardWeights:
     p: 20.
@@ -89,14 +68,12 @@ env:
     cg1: 5.
     cg2: 5.
 
-  enableTaskObs: False #ZC0
-
 sim:
-  substeps: 2 #ZC
+  substeps: 2 
   physx:
     num_threads: 4
     solver_type: 1  # 0: pgs, 1: tgs
-    num_position_iterations: 10 #4
+    num_position_iterations: 10
     num_velocity_iterations: 0
     contact_offset: 0.02
     rest_offset: 0.0
