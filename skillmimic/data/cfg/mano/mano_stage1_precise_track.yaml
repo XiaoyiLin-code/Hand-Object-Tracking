@@ -40,7 +40,7 @@ env:
     
   contactBodies: ["right_index3_z", "right_middle3_z", "right_pinky3_z", "right_ring3_z","right_thumb3_z"]
   enableEarlyTermination: True
-  objectNames: ["Box"]
+  objectNames: ["Bottle"]
 
   asset:
     assetRoot: "skillmimic/data/assets"
