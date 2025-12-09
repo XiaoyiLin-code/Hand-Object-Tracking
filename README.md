@@ -62,12 +62,12 @@ skillmimic/data/motions/
 │   ├── box/
 │   ├── hammer/
 │   ├── sword/
-│   └── ... (other objects from Google Drive)
 ├── dexgrasp_train_shadow/
 │   └── bottle/
-└── dexgrasp_train_allegro/
-    └──bottle/
-
+├── dexgrasp_train_allegro/
+│   └──bottle/
+└── dexgrasp_train_mano_20obj/
+     └── xxx/ ... (other objects from Google Drive)
 ```
 
 ---
@@ -159,7 +159,7 @@ Please note that different skills require specific `--episode_length` settings d
 | Parameter | Grasp | Move | Place | Regrasp | Rotate | Catch | Throw | Freemove |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Skill Label** | 1 | 2 | 3  | 5 | 6 | 7 | 8 | 9 |
-| **Test Ep. Length** | 180 | x | 220 |  |  |  |  |  | x |
+| **Test Ep. Length** | 180 | 120 | 220 |  |  | 100 | 50 | 120 |
 
 ---
 
