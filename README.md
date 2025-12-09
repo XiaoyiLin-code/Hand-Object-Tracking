@@ -2,7 +2,7 @@
 
 [**Paper**](INSERT_PAPER_URL_HERE) | [**Project Page**](https://anonymous6241.github.io/) | [**Video**](INSERT_VIDEO_URL_HERE)
 
-Code release for the **Dexterous Hand** branch of "SkillMimic". This branch (`tree/distill`) focuses on learning dexterous manipulation skills (grasping, moving, placing) using various hand models (MANO, Shadow Hand, Allegro Hand).
+Code release for the **Dexterous Hand** branch of "SkillMimic". This branch focuses on learning dexterous manipulation skills using various hand models (MANO, Shadow Hand, Allegro Hand).
 
 ## Installation 💽
 
@@ -46,6 +46,10 @@ To keep the repository size manageable, we only provide a subset of the motion d
 For **all other objects** (and the full dataset), please download them from Google Drive:
 
 [**⬇️ Download Full Dataset (Google Drive)**](https://drive.google.com/file/d/1Eo1c2W_y2chvHtbsVG47B9d7M85fhwJY/view?usp=sharing)
+
+Alternatively, you can generate the dataset from scratch (or extend it to new objects) by following our detailed guide:
+
+👉 [**Data Generation & Processing Guide**](DATA_GENERATION.md)
 
 ### 3. Organization
 
@@ -132,6 +136,30 @@ CUDA_LAUNCH_BLOCKING=1 python skillmimic/run.py --task SkillMimicHandRand \
 --objnames Bottle \
 --headless
 ```
+
+Inference
+Test the trained model (using the provided checkpoint).
+code
+Bash
+CUDA_LAUNCH_BLOCKING=1 python skillmimic/run.py --test --task SkillMimicHandRand \
+--num_envs 1 \
+--cfg_env skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml \
+--cfg_train skillmimic/data/cfg/train/rlg/skillmimic_denseobj.yaml \
+--motion_file skillmimic/data/motions/dexgrasp_train_mano/bottle/grasp_higher_kp \
+--state_init 2 \
+--episode_length 180 \ 
+--enable_obj_keypoints \
+--use_delta_action \
+--enable_dof_obs \
+--objnames <OBJ NAME> \
+--checkpoint <CHECKPOINT>
+
+Please note that different skills require specific `--episode_length` settings during training and inference. Refer to the table below for the specific values:
+
+| Parameter | Grasp | Move | Place | Regrasp | Rotate | Catch | Throw | Freemove |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Skill Label** | 1 | 2 | 3  | 5 | 6 | 7 | 8 | 9 |
+| **Test Ep. Length** | 180 | x | 220 |  |  |  |  |  | x |
 
 ---
 
@@ -221,6 +249,48 @@ CUDA_LAUNCH_BLOCKING=1 python skillmimic/run.py --task SkillMimicHandRand \
 --checkpoint checkpoint/allegro/allegro_bottle_grasp-move-place.pth
 ```
 
+
+## Distillation 🧪
+
+This section covers the policy distillation process, designed to train a unified student policy capable of handling **multiple skills** or **multiple objects** simultaneously.
+
+### Multi-Skill Distillation
+Distill diverse skills (e.g., grasp, move, place) into a single policy.
+
+**Shell Shortcut:**
+```bash
+bash multiskill_distill.sh
+```
+
+**Full Command:**
+```bash
+# [Command coming soon]
+```
+
+### Multi-Object Distillation
+Distill interaction skills across different objects (e.g., Bottle, Box, Hammer) into a single policy.
+
+**Shell Shortcut:**
+```bash
+bash multiobj_distill.sh
+```
+
+**Full Command:**
+```bash
+# [Command coming soon]
+```
+
+### Inference
+For general testing, you can use the standard inference commands described in the MANO/Shadow/Allegro sections above (ensure you point to the distilled checkpoint).
+
+**For Multi-Object Distillation:**
+We provide a convenient script for testing multi-object policies:
+
+```bash
+bash test.sh
+
+```
+
 ## Citation 🔗
 
 If you find this repository useful, please cite the original SkillMimic paper:
@@ -233,4 +303,6 @@ booktitle = {xxx},
 year = {2025}
 }
 ```
+
+
 
