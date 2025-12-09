@@ -355,8 +355,8 @@ class MultiObjDistill(SkillMimicHandRand):
         # Time humanoid and object observation computation
         t0 = time.time()
 
-        humanoid_obs = self._compute_humanoid_local_obs(env_ids)
-        obj_obs = self._compute_obj_local_obs(env_ids)
+        humanoid_obs = self._compute_humanoid_obs(env_ids)
+        obj_obs = self._compute_obj_obs(env_ids)
 
         self.timing_stats['compute_basic_obs'].append(time.time() - t0)
         if self.skill_labels[env_ids].shape != torch.Size([1]):
@@ -549,7 +549,6 @@ class MultiObjDistill(SkillMimicHandRand):
         self.init_root_pos[env_ids], self.init_root_rot[env_ids],  self.init_root_pos_vel[env_ids], self.init_root_rot_vel[env_ids], \
         self.init_dof_pos[env_ids], self.init_dof_pos_vel[env_ids], \
         self.init_obj_pos[env_ids], self.init_obj_pos_vel[env_ids], self.init_obj_rot[env_ids], self.init_obj_rot_vel[env_ids], \
-        self.init_obj2_pos[env_ids], self.init_obj2_pos_vel[env_ids], self.init_obj2_rot[env_ids], self.init_obj2_rot_vel[env_ids] \
             = self._motion_data.get_initial_state(env_ids, motion_ids, motion_times)
         
         if self.refined_motion_as_obs:
