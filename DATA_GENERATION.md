@@ -1,4 +1,3 @@
-```markdown
 # Data Generation & Processing Pipeline 🛠️
 
 This guide details the pipeline for generating basketball interaction skills and hand-object manipulation data from scratch. It covers two main parts:
@@ -147,7 +146,7 @@ cd DexGraspNet/grasp_generation
 # Usage: python main.py --object_code_list [object_code_list]
 
 # Example:
-python main.py 
+python main.py
 ```
 *Output:* `DexGraspNet/data/experiments/exp_32/results`
 
@@ -186,4 +185,3 @@ cd skillmimic
 python skillmimic/data_dexgrasp_mano.py
 ```
 *Output:* `skillmimic/data/motions/graspmimic/dexgrasp_mano` (These are used in `unihot_data_generator.py` for further processing).
-```
