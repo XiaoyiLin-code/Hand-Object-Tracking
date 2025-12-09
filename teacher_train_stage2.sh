@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 要使用的GPU设备列表
-GPUS=(0)
+GPUS=(1)
 
 # 对象列表 - 根据您的实际对象修改
 OBJECTS=("Bottle")

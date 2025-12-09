@@ -15,8 +15,8 @@
     </default>
 
     <worldbody>
-                <body name="allegro_wrist" pos="0 0 0"> 
-                <!-- this is needed else one dof less -->
+            <body name="allegro_wrist" pos="0 0 0"> 
+            <!-- this is needed else one dof less -->
 
             <body name="allegro_root1" pos="0 0 0">
             <inertial pos="0 0 0" mass="0.01" diaginertia="0.00333333 0.00333333 0.00333333" />
