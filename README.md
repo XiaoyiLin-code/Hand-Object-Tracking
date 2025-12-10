@@ -264,7 +264,7 @@ This section covers the policy distillation process, designed to train a unified
 ### 💾 Data Preparation (Optional)
 To improve distillation performance, you can generate **physically plausible motion data** using the trained teacher policies.
 
-1.  Run the **Teacher Policy Inference** with the `--save_refine_data` flag.
+1.  Run the **Teacher Policy Inference** with the `--save_refined_data` flag.
 2.  Use the path of the saved data to replace the `--refined_motion_file` argument in the distillation command below.
 
 ### Multi-Skill Distillation
