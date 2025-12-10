@@ -102,6 +102,8 @@ class SkillMimicPlayerContinuous(common_player.CommonPlayer):
         total_error_step = 0 
         total_metric = 0
         rounds = 5
+        if self.env.task._save_refined_data:
+            rounds = 10000
 
         for episode in range(rounds): #n_games
             # if games_played >= n_games: #Z
@@ -204,8 +206,10 @@ class SkillMimicPlayerContinuous(common_player.CommonPlayer):
                     done_indices = all_done_indices[::self.num_agents]
                     done_count = len(done_indices)
                     games_played += done_count
-
-                    if self.metric_manager:
+                    if self.env.task._save_refined_data:
+                        metics_indices = info["cal_metrics"].nonzero(as_tuple=False)[::self.num_agents]
+                        save_metics_indices = info["save_metrics"].nonzero(as_tuple=False)[::self.num_agents]
+                    if (self.metric_manager and not self.env.task._save_refined_data) or (self.env.task._save_refined_data and len(metics_indices) > 0):
                         state = self.env.task.get_state_for_metric()
                         state['progress'] = n
                         self.metric_manager.update(state)
@@ -234,6 +238,16 @@ class SkillMimicPlayerContinuous(common_player.CommonPlayer):
                         total_E_or+= cur_E_or
                         total_E_h += cur_E_h
                         total_error_step += curr_error_steps
+                        
+                    if self.env.task._save_refined_data and len(save_metics_indices) > 0:
+                        succ_envs_id = self.metric_manager.get_succ_envs()
+                        for metric_name, value in succ_envs_id.items():
+                            save_done_flat = save_metics_indices.squeeze(0)
+                            # Find the comment indices (present in all_done_flat but not in value)
+                            mask = torch.isin(save_done_flat, value)
+                            comment_indices = save_done_flat[mask]
+                            print(comment_indices)
+                            self.env.task.save_refined_data(comment_indices.tolist())
 
                     if done_count > 0:
                         if self.is_rnn:
@@ -309,7 +323,8 @@ class SkillMimicPlayerContinuous(common_player.CommonPlayer):
                         total_metric += value
                         print(f"{metric_name}: {value}")
                     self.metric_manager.reset(done_indices)
-
+                if self.env.task._save_refined_data and games_played >= self.env.task._motion_data.num_motions:
+                    break
         print(sum_rewards)
         if print_game_res:
             print('av reward:', sum_rewards / games_played * n_game_life, 'av steps:', sum_steps / games_played * n_game_life, 'winrate:', sum_game_res / games_played * n_game_life)

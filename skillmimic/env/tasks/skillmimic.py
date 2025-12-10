@@ -13,6 +13,7 @@ import time as pyton_time# changed by me
 from pathlib import Path
 from datetime import datetime
 import math 
+import shutil
 
 from utils import torch_utils
 from utils.motion_data_handler import MotionDataHandler
@@ -47,6 +48,7 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
         self._enable_dof_obs = cfg['env']['enableDofObs']
         self._enable_dense_obj = cfg["env"]["enable_dense_obj"]
         self.hand_model = cfg['env']['hand_model']
+        self._save_refined_data = cfg["env"]["saveRefinedData"]
 
         if self.hand_model == "mano":
             # 119 = root_pos (3) + root_rot (4)+ dof_pos (51)+ dof_pos_vel (51)+ obj_pos (3) + obj_rot (4)+ obj_pos_vel (3)
@@ -89,6 +91,23 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
         self.show_abnorm = [0] * self.num_envs
         self.skill_labels = torch.ones(self.num_envs, device=self.device, dtype=torch.long) * 100
 
+        if self._save_refined_data :
+            self.motion_clip_id = list(range(self._motion_data.num_motions))
+            max_episode_length_refined = 500
+            self.current_step = torch.zeros((self.num_envs), device=self.device, dtype=torch.float) #cannot use progress_buf as progress_buf will have both init frame and first frame as 0
+            self._refined_data_root_pos = torch.zeros((self.num_envs, max_episode_length_refined, 3), device=self.device, dtype=torch.float)
+            self._refined_data_root_rot = torch.zeros((self.num_envs, max_episode_length_refined, 4), device=self.device, dtype=torch.float)
+            self._refined_data_wrist_dof = torch.zeros((self.num_envs, max_episode_length_refined, 6), device=self.device, dtype=torch.float)
+            self._refined_data_fingers_dof = torch.zeros((self.num_envs, max_episode_length_refined, 45), device=self.device, dtype=torch.float)
+            self._refined_data_body_pos = torch.zeros((self.num_envs, max_episode_length_refined, len(self._key_body_ids)*3), device=self.device, dtype=torch.float)
+            self._refined_data_obj_pos = torch.zeros((self.num_envs, max_episode_length_refined, 3), device=self.device, dtype=torch.float)
+            self._refined_data_obj_pos_vel = torch.zeros((self.num_envs, max_episode_length_refined, 3), device=self.device, dtype=torch.float)
+            self._refined_data_obj_rot = torch.zeros((self.num_envs, max_episode_length_refined, 4), device=self.device, dtype=torch.float)
+            self._refined_data_obj2_pos = torch.zeros((self.num_envs, max_episode_length_refined, 3), device=self.device, dtype=torch.float)
+            self._refined_data_obj2_rot = torch.zeros((self.num_envs, max_episode_length_refined, 4), device=self.device, dtype=torch.float)
+            self._refined_data_contact1 = torch.zeros((self.num_envs, max_episode_length_refined, 1), device=self.device, dtype=torch.float)
+            self._refined_data_contact2 = torch.zeros((self.num_envs, max_episode_length_refined, 1), device=self.device, dtype=torch.float)
+
     def get_state_for_metric(self):
         return {
             'obj_pos': self._target_states[..., 0:3],
@@ -104,8 +123,9 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
     def post_physics_step(self):
         if self.isTest and not self.headless: 
             self._set_traj()
+        if self._save_refined_data:
+            self.record_refined_data()
         self._compute_hoi_observations()
-
         super().post_physics_step()
 
         self._update_hist_hoi_obs()
@@ -276,7 +296,9 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
         return
     
     def _reset_state_init(self, env_ids):
-        if self._state_init == -1:
+        if self._save_refined_data:
+            self.motion_ids, self.motion_times = self._reset_refine_ref_state_init(env_ids)
+        elif self._state_init == -1:
             self.motion_ids, self.motion_times = self._reset_random_ref_state_init(env_ids) #V1 Random Ref State Init (RRSI)
         elif self._state_init >= 2:
             self.motion_ids, self.motion_times = self._reset_deterministic_ref_state_init(env_ids)
@@ -294,6 +316,15 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
   
         pass
 
+    def _reset_envs(self, env_ids):
+        if(len(env_ids)>0): #metric
+            self.reached_target[env_ids] = 0
+        
+        super()._reset_envs(env_ids)
+        if self._save_refined_data and len(env_ids)>0 and torch.any(env_ids == 0).item(): # only save when env 0 is reset
+            self.record_refined_data()
+        return
+    
     def _reset_actors(self, env_ids):
         self._reset_state_init(env_ids)
         super()._reset_actors(env_ids)
@@ -333,6 +364,34 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
             len(self._traj_actor_ids)
         )
     
+    def _reset_refine_ref_state_init(self, env_ids):
+        num_envs = env_ids.shape[0]
+        if self.refine_sampling:
+            motion_ids = self.get_motions(num_envs)
+        else:
+            motion_ids = torch.full((num_envs,), 0)      
+        # motion_ids = torch.arange(num_envs, device=self.device)
+        # print(self._motion_data.hoi_data_dict[motion_ids.item()]['hoi_data_path'])
+        motion_times = torch.full(motion_ids.shape, 0, device=self.device, dtype=torch.int)
+
+        self.hoi_data_batch[env_ids], \
+        self.init_root_pos[env_ids], self.init_root_rot[env_ids],  self.init_root_pos_vel[env_ids], self.init_root_rot_vel[env_ids], \
+        self.init_dof_pos[env_ids], self.init_dof_pos_vel[env_ids], \
+        self.init_obj_pos[env_ids], self.init_obj_pos_vel[env_ids], self.init_obj_rot[env_ids], self.init_obj_rot_vel[env_ids], \
+            = self._motion_data.get_initial_state(env_ids, motion_ids, motion_times)
+        
+        skill_label = self._motion_data.motion_class[motion_ids.cpu().numpy()]
+        self.skill_labels[env_ids] = torch.from_numpy(skill_label).to(self.device)
+
+        return motion_ids, motion_times
+    
+    def get_motions(self, n):
+        motion_available = n if n < len(self.motion_clip_id) else len(self.motion_clip_id)
+        motion_ids_list = [self.motion_clip_id.pop() for _ in range(motion_available)]
+        motion_ids_list.extend([0] * (n - motion_available))
+        motion_ids = torch.tensor(motion_ids_list)
+        return motion_ids
+        
     def _set_traj_play_dataset(self, motids):
         motids = torch.tensor([motids], device=self.device).repeat(self.num_envs) if isinstance(motids, int) else motids
         motion_length = self._motion_data.motion_lengths.to(self.device).clone()
@@ -415,6 +474,133 @@ class SkillMimicBallPlay(HumanoidWholeBodyWithObjectPlane):
                                                          self._target_states[indexer], 
                                                          self.progress_buf[indexer])
         return
+    
+    
+    def record_refined_data(self):
+        # Create masks for environments at step 0 vs continuing
+        env_ids = torch.arange(self.num_envs, device=self.device)
+        self.max_episode_length = max(self._motion_data.envid2episode_lengths[env_ids])
+        reset_mask = (self.current_step == 0)
+        continue_mask = ~reset_mask
+
+        # Handle environments that are at step 0 (new/reset environments)
+        if torch.any(reset_mask):
+            reset_envs = env_ids[reset_mask]
+            
+            self._refined_data_root_pos[reset_envs, 0, :] = self._humanoid_root_states[reset_envs, :3].clone()
+            self._refined_data_root_rot[reset_envs, 0, :] = self._humanoid_root_states[reset_envs, 3:7].clone()
+            self._refined_data_wrist_dof[reset_envs, 0, :] = self._dof_pos[reset_envs, :6].clone()
+            self._refined_data_fingers_dof[reset_envs, 0, :] = self._dof_pos[reset_envs, 6:].clone()
+            self._refined_data_body_pos[reset_envs, 0, :] = self._rigid_body_pos[reset_envs, :][:, self._key_body_ids, :].reshape(-1, len(self._key_body_ids)*3).clone()
+            self._refined_data_obj_pos[reset_envs, 0, :] = self._target_states[reset_envs, :3].clone()
+            self._refined_data_obj_pos_vel[reset_envs, 0, :] = self._target_states[reset_envs, 7:10].clone()
+            self._refined_data_obj_rot[reset_envs, 0, :] = self._target_states[reset_envs, 3:7].clone()
+            self._refined_data_obj2_pos[reset_envs, 0, :] = torch.tensor([0, 0, 10], device=self.device, dtype=torch.float).unsqueeze(0).expand(len(reset_envs), -1)
+            self._refined_data_obj2_rot[reset_envs, 0, :] = torch.tensor([0, 0, 0, 1], device=self.device, dtype=torch.float).unsqueeze(0).expand(len(reset_envs), -1)
+            # Calculate contact for reset environments
+            contact1 = torch.any(torch.abs(self._tar_contact_forces[reset_envs, 0:2]) > 0.1, dim=-1).float().unsqueeze(-1)
+            self._refined_data_contact1[reset_envs, 0, :] = contact1
+            self._refined_data_contact2[reset_envs, 0, :] = torch.zeros(len(reset_envs), 1, device=self.device)
+        # Handle environments that are continuing their episodes
+        if torch.any(continue_mask):
+            cont_envs = env_ids[continue_mask]
+            current_steps = self.current_step[cont_envs].long()
+
+
+            self._refined_data_root_pos[cont_envs, current_steps, :] = self._rigid_body_pos[cont_envs, 0, :].clone()
+            self._refined_data_root_rot[cont_envs, current_steps, :] = self._rigid_body_rot[cont_envs, 0, :].clone()
+            self._refined_data_wrist_dof[cont_envs, current_steps, :] = self._dof_pos[cont_envs, :6].clone()
+            self._refined_data_fingers_dof[cont_envs, current_steps, :] = self._dof_pos[cont_envs, 6:].clone()
+            self._refined_data_body_pos[cont_envs, current_steps, :] = self._rigid_body_pos[cont_envs, :][:, self._key_body_ids, :].reshape(-1, len(self._key_body_ids)*3).clone()
+            self._refined_data_obj_pos[cont_envs, current_steps, :] = self._target_states[cont_envs, :3].clone()
+            self._refined_data_obj_pos_vel[cont_envs, current_steps, :] = self._target_states[cont_envs, 7:10].clone()
+            self._refined_data_obj_rot[cont_envs, current_steps, :] = self._target_states[cont_envs, 3:7].clone()
+            self._refined_data_obj2_pos[cont_envs, current_steps, :] = torch.tensor([0, 0, 10], device=self.device, dtype=torch.float).unsqueeze(0).expand(len(cont_envs), -1)
+            self._refined_data_obj2_rot[cont_envs, current_steps, :] = torch.tensor([0, 0, 0, 1], device=self.device, dtype=torch.float).unsqueeze(0).expand(len(cont_envs), -1)
+            
+            # Calculate contact for continuing environments
+            contact1 = torch.any(torch.abs(self._tar_contact_forces[cont_envs, 0:2]) > 0.1, dim=-1).float().unsqueeze(-1)
+            self._refined_data_contact1[cont_envs, current_steps, :] = contact1
+            self._refined_data_contact2[cont_envs, current_steps, :] = torch.zeros(len(cont_envs), 1, device=self.device, dtype=torch.float)
+
+            # Increment current_step for all active environments
+        skill_name = self.skill_name.split('_')[0]
+        if skill_name == 'grasp':
+            time2test_metric = 180
+            time2save_data = 180
+        elif skill_name == 'place':
+            time2test_metric = 220
+            time2save_data = time2test_metric
+        elif skill_name == 'move':
+            time2test_metric = self._motion_data.envid2episode_lengths[env_ids]
+            time2save_data = time2test_metric
+        elif skill_name == 'catch':
+            time2test_metric = 100      
+            time2save_data = time2test_metric
+        elif skill_name == 'throw':
+            time2test_metric = 50   
+            time2save_data = time2test_metric
+        elif skill_name == 'rotate':
+            time2test_metric = 480
+            time2save_data = time2test_metric
+        elif skill_name == 'regrasp':
+            time2test_metric = 180  
+            time2save_data = time2test_metric
+        elif skill_name == 'freemove':
+            time2test_metric = self._motion_data.envid2episode_lengths[env_ids] 
+            time2save_data = time2test_metric
+        self.extras['cal_metrics'] = torch.where(self.current_step <= time2test_metric-1, torch.ones_like(self.reset_buf), torch.zeros_like(self.reset_buf))
+        self.extras['save_metrics'] = torch.where(self.current_step >= time2save_data-1, torch.ones_like(self.reset_buf), torch.zeros_like(self.reset_buf))
+        self.current_step += 1
+    
+    
+    def save_refined_data(self, succ_env_id):
+        # Check which environments have reached the end of their episodes
+        env_ids = torch.arange(self.num_envs, device=self.device)
+        completed_envs = (self.current_step >= (self._motion_data.envid2episode_lengths[env_ids]))
+        completed_env_ids = torch.nonzero(completed_envs).flatten()
+
+        if len(succ_env_id) > 0:
+            for env_id in succ_env_id:
+                # Extract the data for this environment
+                last_step = self._motion_data.envid2episode_lengths[env_id]
+                refined_hoi_data  = {
+                    'root_pos': self._refined_data_root_pos[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'root_rot': self._refined_data_root_rot[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'wrist_dof': self._refined_data_wrist_dof[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'fingers_dof': self._refined_data_fingers_dof[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'body_pos': self._refined_data_body_pos[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'obj_pos': self._refined_data_obj_pos[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'obj_pos_vel': self._refined_data_obj_pos_vel[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'obj_rot': self._refined_data_obj_rot[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'obj2_pos': self._refined_data_obj2_pos[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'obj2_rot': self._refined_data_obj2_rot[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'contact1': self._refined_data_contact1[env_id, :(last_step).int(), :].detach().cpu().to(self.device),
+                    'contact2': self._refined_data_contact2[env_id, :(last_step).int(), :].detach().cpu().to(self.device)
+                }
+                
+                # Get the motion ID and path information for this environment
+                motid = self._motion_data.envid2motid[env_id].item()
+                original_path = self._motion_data.hoi_data_dict[motid]['hoi_data_path']
+                path_obj = Path(original_path)
+                parent_dir = path_obj.parent
+                base_dir = path_obj.parent.name
+                filename = path_obj.name
+
+                # Create output directory
+                new_dir_name = f"{base_dir}_refined_reweight"
+                new_dir_path = parent_dir.parent / new_dir_name
+                os.makedirs(new_dir_path, exist_ok=True)
+                new_file_path = new_dir_path / filename
+                torch.save(refined_hoi_data, str(new_file_path))
+
+                original_file_path = parent_dir / filename
+                new_student_dir_name = f"{base_dir}_student_reweight"
+                new_student_dir_path =  parent_dir.parent / new_student_dir_name 
+                os.makedirs(new_student_dir_path, exist_ok=True)
+                shutil.copyfile(original_file_path, new_student_dir_path / filename)
+                print(f"Saved environment {env_id} data to {new_file_path}")
+ 
     
     def play_dataset_postproc_unihotdata(self): #Z12
         for motid in range(self._motion_data.num_motions):

@@ -16,3 +16,9 @@ class MetricManager:
         for metric in self.metrics:
             results[type(metric).__name__] = metric.compute()
         return results
+
+    def get_succ_envs(self):
+        succ_envs_id = {}
+        for metric in self.metrics:
+            succ_envs_id[type(metric).__name__] = metric.get_succ_envs()
+        return succ_envs_id

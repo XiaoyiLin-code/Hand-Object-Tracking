@@ -114,6 +114,7 @@ def load_cfg(args):
     cfg["env"]["blender_motion_length"] = args.blender_motion_length
     cfg["env"]["blender_motion_name"] = args.blender_motion_name
     cfg["env"]["refined_motion_as_obs"] = args.refined_motion_as_obs
+    cfg["env"]["saveRefinedData"] = args.save_refined_data
     cfg["env"]["hand_model"] = args.hand_model
 
     cfg["name"] = args.task

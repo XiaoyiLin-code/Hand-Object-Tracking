@@ -137,10 +137,9 @@ CUDA_LAUNCH_BLOCKING=1 python skillmimic/run.py --task SkillMimicHandRand \
 --headless
 ```
 
-Inference
-Test the trained model (using the provided checkpoint).
-code
-Bash
+### Inference Command:
+Test the trained model.
+```Bash
 CUDA_LAUNCH_BLOCKING=1 python skillmimic/run.py --test --task SkillMimicHandRand \
 --num_envs 1 \
 --cfg_env skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml \
@@ -151,15 +150,16 @@ CUDA_LAUNCH_BLOCKING=1 python skillmimic/run.py --test --task SkillMimicHandRand
 --enable_obj_keypoints \
 --use_delta_action \
 --enable_dof_obs \
---objnames <OBJ NAME> \
---checkpoint <CHECKPOINT>
+--objnames \[OBJ NAME\] \
+--checkpoint \[CHECKPOINT\]
+```
 
 Please note that different skills require specific `--episode_length` settings during training and inference. Refer to the table below for the specific values:
 
 | Parameter | Grasp | Move | Place | Regrasp | Rotate | Catch | Throw | Freemove |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Skill Label** | 1 | 2 | 3  | 5 | 6 | 7 | 8 | 9 |
-| **Test Ep. Length** | 180 | 120 | 220 |  |  | 100 | 50 | 120 |
+| **Test Ep. Length** | 180 | 120 | 220 | 180 | 120 | 100 | 50 | 120 |
 
 ---
 

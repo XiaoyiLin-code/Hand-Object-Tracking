@@ -4,7 +4,7 @@ set -euo pipefail
 # ================= Configuration =================
 
 # [Modified] Define unified Checkpoint path here
-CHECKPOINT_PATH="../multiobj_distill/output/distill_4layer_15obj_4096_10-21-26-14/nn/distill_4layer_15obj_4096_e12500.pth"
+CHECKPOINT_PATH="checkpoint/multiobj_student_checkpoint/distill_4layer_15obj_4096.pth"
 
 # Define object list
 objects=(
@@ -28,11 +28,12 @@ objects=(
 
 # Create log directory
 mkdir -p logs
+mkdir -p logs/test_result
 
 # Create result output file
 timestamp=$(date +%Y%m%d_%H%M%S)
-output_file="test_results_${timestamp}.txt"
-summary_file="test_summary_${timestamp}.csv"
+output_file="logs/test_result/test_results_${timestamp}.txt"
+summary_file="logs/test_result/test_summary_${timestamp}.csv"
 
 echo "Test Results - $(date)" > "$output_file"
 echo "Using Checkpoint: $CHECKPOINT_PATH" >> "$output_file"
@@ -68,16 +69,15 @@ for obj in "${objects[@]}"; do
     echo "----------------------------------------" | tee -a "$output_file"
 
     # [Modified] Use $CHECKPOINT_PATH variable
-    grasp_command="DRI_PRIME=1 CUDA_VISIBLE_DEVICES=2 CUDA_LAUNCH_BLOCKING=1 \
+    grasp_command="DRI_PRIME=1 CUDA_VISIBLE_DEVICES=1 CUDA_LAUNCH_BLOCKING=1 \
     python skillmimic/run.py \
         --test \
-        --task SkillMimic2BallPlayRandInd \
+        --task SkillMimicHandRand \
         --num_envs 1024 \
-        --cfg_env skillmimic/data/cfg/skillmimic.yaml \
-        --cfg_train skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml\
+        --cfg_env skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml \
+        --cfg_train skillmimic/data/cfg/train/rlg/skillmimic_large_mlp.yaml\
         --enable_obj_keypoints \
         --enable_ig_scale \
-        --enable_wrist_local_obs \
         --checkpoint \"$CHECKPOINT_PATH\" \
         --state_init 2 \
         --motion_file \"skillmimic/data/motions/dexgrasp_train_mano_20obj/${obj_lower}/grasp_kp\" \
@@ -101,16 +101,15 @@ for obj in "${objects[@]}"; do
     echo "----------------------------------------" | tee -a "$output_file"
 
     # [Modified] Use $CHECKPOINT_PATH variable
-    place_command="DRI_PRIME=1 CUDA_VISIBLE_DEVICES=2 CUDA_LAUNCH_BLOCKING=1 \
+    place_command="DRI_PRIME=1 CUDA_VISIBLE_DEVICES=1 CUDA_LAUNCH_BLOCKING=1 \
     python skillmimic/run.py \
         --test \
-        --task SkillMimic2BallPlayRandInd \
+        --task SkillMimicHandRand \
         --num_envs 1024 \
-        --cfg_env skillmimic/data/cfg/skillmimic.yaml \
-        --cfg_train skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml\
+        --cfg_env skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml \
+        --cfg_train skillmimic/data/cfg/train/rlg/skillmimic_large_mlp.yaml\
         --enable_obj_keypoints \
         --enable_ig_scale \
-        --enable_wrist_local_obs \
         --checkpoint \"$CHECKPOINT_PATH\" \
         --state_init 2 \
         --motion_file \"skillmimic/data/motions/dexgrasp_train_mano_20obj/${obj_lower}/place_higher_kp\" \
@@ -134,16 +133,15 @@ for obj in "${objects[@]}"; do
     echo "----------------------------------------" | tee -a "$output_file"
 
     # [Modified] Use $CHECKPOINT_PATH variable
-    move_command="DRI_PRIME=1 CUDA_VISIBLE_DEVICES=2 CUDA_LAUNCH_BLOCKING=1 \
+    move_command="DRI_PRIME=1 CUDA_VISIBLE_DEVICES=1 CUDA_LAUNCH_BLOCKING=1 \
     python skillmimic/run.py \
         --test \
-        --task SkillMimic2BallPlayRandInd \
+        --task SkillMimicHandRand \
         --num_envs 1024 \
-        --cfg_env skillmimic/data/cfg/skillmimic.yaml \
-        --cfg_train skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml\
+        --cfg_env skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml \
+        --cfg_train skillmimic/data/cfg/train/rlg/skillmimic_large_mlp.yaml\
         --enable_obj_keypoints \
         --enable_ig_scale \
-        --enable_wrist_local_obs \
         --checkpoint \"$CHECKPOINT_PATH\" \
         --state_init 2 \
         --motion_file \"skillmimic/data/motions/dexgrasp_train_mano_20obj/${obj_lower}/move_higher_kp\" \

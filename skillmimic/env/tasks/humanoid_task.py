@@ -256,7 +256,11 @@ class HumanoidWholeBody(BaseTask):
 
     def reset(self, env_ids=None):
         if (env_ids is None):
+            self.refine_sampling = True
+            self.current_step = torch.zeros((self.num_envs), device=self.device, dtype=torch.float)
             env_ids = to_torch(np.arange(self.num_envs), device=self.device, dtype=torch.long)
+        else:
+            self.refine_sampling = False
         self._reset_envs(env_ids)
         return
 

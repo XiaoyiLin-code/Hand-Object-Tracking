@@ -5,6 +5,36 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Run SkillMimic Test",
+            "type": "python",
+            "request": "launch",
+            "program": "skillmimic/run.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "CUDA_LAUNCH_BLOCKING": "1",
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "args": [
+                "--test",
+                "--task", "SkillMimicHandRand",
+                "--num_envs", "1024",
+                "--cfg_env", "skillmimic/data/cfg/mano/mano_stage1_precise_track.yaml",
+                "--cfg_train", "skillmimic/data/cfg/train/rlg/skillmimic_denseobj.yaml",
+                "--motion_file", "skillmimic/data/motions/dexgrasp_train_mano/bottle/grasp_higher_kp",
+                "--state_init", "2",
+                "--episode_length", "180",
+                "--enable_obj_keypoints",
+                "--use_delta_action",
+                "--enable_dof_obs",
+                "--objnames", "Bottle",
+                "--checkpoint", "checkpoint/multiobj_teacher_checkpoints/GraspMovePlace_bottle_0.pth",
+                "--save_refined_data",
+                "--headless"
+            ]
+        },
+
+        {
             "name": "PlayDataset Hand",
             "type": "python",
             "request": "launch",
