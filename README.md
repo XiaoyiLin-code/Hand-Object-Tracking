@@ -5,6 +5,15 @@
 Code release for the paper "Learning Generalizable Hand-Object Tracking from Synthetic
 Demonstrations".
 
+# TODO 📋
+
+- [ ] adapt to Isaacsim simulator
+- [x] Release pre-trained model checkpoints
+- [x] Release multiobjs train data
+- [x] Release data generation code
+- [x] Release train、test and distill code
+
+
 ## Installation 💽
 
 ### Step 1: Build Environment
