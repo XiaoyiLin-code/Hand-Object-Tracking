@@ -8,8 +8,8 @@ This guide details the pipeline for generating basketball interaction skills and
 
 ## Part 1: Installation & Setup ⚙️
 
-### Option A: On top of existing SkillMimic environment
-If you have already set up the main `skillmimic` environment, you only need to install these additional libraries:
+### Option A: On top of existing HOT environment
+If you have already set up the main `hot` environment, you only need to install these additional libraries:
 
 ```bash
 pip install matplotlib
@@ -23,8 +23,8 @@ If you are setting this up independently:
 
 **1. Create Conda Environment**
 ```bash
-conda create -n skillmimic python=3.8
-conda activate skillmimic
+conda create -n hot python=3.8
+conda activate hot
 pip install -r requirements.txt
 # Or: conda env create -f environment.yml
 ```
@@ -169,11 +169,11 @@ python validate_grasps.py \
 ```
 *Output:* `saved_ids.txt` (contains indices for filtered grasps).
 
-### 4. Export to SkillMimic
-Save the validated static grasp poses to the SkillMimic directory format.
+### 4. Export to HOt
+Save the validated static grasp poses to the HOT directory format.
 
 ```bash
-cd skillmimic
+cd hot
 python hot/data_dexgrasp_mano.py
 ```
 *Output:* `hot/data/motions/graspmimic/dexgrasp_mano` (These are used in `hop_data_generator.py` for further processing).
